@@ -2253,25 +2253,26 @@ function renderChart(schedule){
   const weeks = schedule.weeks;
   const max = Math.max(...weeks.map(w=>w.totalKm), 1);
   const barW = 34, gap = 10, chartH = 140;
+  const padTop = 18; // ruimte boven de hoogste staaf voor het getal (anders valt het buiten de grafiek)
   const width = weeks.length*(barW+gap)+gap;
 
   let bars = '';
   weeks.forEach((w,i) => {
     const h = Math.max(4, (w.totalKm/max)*chartH);
     const x = gap + i*(barW+gap);
-    const y = chartH - h;
+    const y = padTop + chartH - h;
     const isRaceFinish = w.days.some(d=>d.type==='wedstrijd');
     const isGoalFinish = w.days.some(d=>d.type==='doel');
     const color = isRaceFinish ? 'var(--c-wedstrijd)' : isGoalFinish ? 'var(--c-doel)'
       : (w.isRecoveryWeek ? 'var(--c-herstel)' : (w.isTaperWeek ? 'var(--c-tempo)' : 'var(--c-lange)'));
     bars += `<g>
       <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="${color}"></rect>
-      <text x="${x+barW/2}" y="${chartH+16}" text-anchor="middle" font-size="10" fill="var(--muted)">W${i+1}</text>
+      <text x="${x+barW/2}" y="${padTop+chartH+16}" text-anchor="middle" font-size="10" fill="var(--muted)">W${i+1}</text>
       <text x="${x+barW/2}" y="${y-5}" text-anchor="middle" font-size="10" fill="var(--ink)">${Math.round(w.totalKm)}</text>
     </g>`;
   });
 
-  host.innerHTML = `<svg viewBox="0 0 ${width} ${chartH+30}" width="${width}" height="${chartH+30}" role="img" aria-label="Kilometers per week">${bars}</svg>`;
+  host.innerHTML = `<svg viewBox="0 0 ${width} ${padTop+chartH+30}" width="${width}" height="${padTop+chartH+30}" role="img" aria-label="Kilometers per week">${bars}</svg>`;
 }
 
 function renderLegend(schedule){
@@ -3153,128 +3154,227 @@ async function queryOverpassKnooppunten(lat, lon, radiusM){
 }
 
 /*
-  Werkelijke, over bestaande wegen/paden berekende afstand (km) langs een reeks
-  punten, via de gratis publieke OSRM-demoserver (project-osrm.org, profiel
-  'foot' — te voet, het beste algemene profiel voor zowel wandel- als
-  fietsknooppunten-paden). 'points' is een array van {lat,lon}, begin- en
-  eindpunt inbegrepen (voor een lus dus origin...origin).
+  ROUTESERVICE — werkelijke afstand (km) over bestaande wegen/paden langs een reeks
+  punten (voor een lus dus origin...origin).
+
+  BELANGRIJK: de oude versie gebruikte router.project-osrm.org met profiel 'foot', maar
+  die publieke demoserver rekent in de praktijk met een AUTO-profiel, ongeacht wat je in
+  de URL zet. Autoroutes mijden voet- en fietspaden en volgen eenrichtingsstraten, dus de
+  gemeten afstanden klopten niet met wat Google Maps te voet toont.
+  Nu: eerst de voetgangersserver van FOSSGIS (routing.openstreetmap.de/routed-foot), en
+  alleen als die onbereikbaar is de oude server als reserve (dan met een waarschuwing).
 */
+const ROUTE_SERVERS = [
+  { id:'foot', base:'https://routing.openstreetmap.de/routed-foot/route/v1/driving/' },
+  { id:'car',  base:'https://router.project-osrm.org/route/v1/driving/' }
+];
+let routeServerIdx = 0;       // onthoudt welke server werkte
+let routeServerUsed = 'foot'; // voor de melding in de UI
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 async function osrmRouteDistanceKm(points){
   const coordStr = points.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
-  const url = `https://router.project-osrm.org/route/v1/foot/${coordStr}?overview=false`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('Routeservice (OSRM) reageerde niet.');
-  const data = await res.json();
-  if(data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('Geen bruikbare route gevonden tussen deze punten.');
-  return data.routes[0].distance / 1000;
+  let lastErr = null;
+  for(let i = routeServerIdx; i < ROUTE_SERVERS.length; i++){
+    for(let attempt = 0; attempt < 2; attempt++){
+      try{
+        const res = await fetch(`${ROUTE_SERVERS[i].base}${coordStr}?overview=false`);
+        if(res.status === 429){ await sleep(1200); continue; } // even te veel vragen: kort wachten
+        if(!res.ok) throw new Error('Routeservice reageerde niet (' + res.status + ').');
+        const data = await res.json();
+        if(data.code !== 'Ok' || !data.routes || !data.routes.length){
+          const e = new Error('Geen bruikbare route gevonden tussen deze punten.');
+          e.noRoute = true;   // de server werkt wel, alleen deze punten niet: niet wisselen
+          throw e;
+        }
+        routeServerIdx = i;
+        routeServerUsed = ROUTE_SERVERS[i].id;
+        return data.routes[0].distance / 1000;
+      } catch(e){
+        if(e.noRoute) throw e;
+        lastErr = e;
+        break; // netwerk-/serverfout: probeer de volgende server
+      }
+    }
+  }
+  throw lastErr || new Error('Routeservice niet bereikbaar.');
+}
+
+/* Rechte-lijnafstand langs een reeks punten (km). */
+function straightLineKm(points){
+  let s = 0;
+  for(let i = 1; i < points.length; i++) s += haversineKm(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
+  return s;
 }
 
 /*
-  Kern van de knooppunten-routegenerator: zoekt in de buurt van het ideale
-  (kompas-berekende) punt de dichtstbijzijnde échte knooppunten, en test via OSRM
-  voor een paar kandidaten wat de werkelijke afstand zou zijn — net zo lang tot
-  een kandidaat binnen 500 m van de gewenste afstand zit, of anders de beste
-  gevonden combinatie. 'statusCb' geeft tussentijdse voortgang door aan de UI.
+  Geometrische keerpunten op 'radiusKm' van het startpunt.
+  - heen-en-terug: 1 punt in de gekozen richting (rechte lijn = 2 × straal)
+  - lus: 2 punten op 120° van elkaar (gelijkzijdige driehoek: omtrek ≈ 3,73 × straal)
 */
-async function findKnooppuntenRoute(origin, km, shape, bearingDeg, statusCb){
-  const TARGET_TOLERANCE_KM = 0.5;
+const GEO_DIVISOR = { heenterug: 2, lus: 3.73 };
+function geoWaypoints(origin, shape, bearingDeg, radiusKm){
+  return shape === 'heenterug'
+    ? [destinationPoint(origin.lat, origin.lon, bearingDeg, radiusKm)]
+    : [destinationPoint(origin.lat, origin.lon, bearingDeg, radiusKm),
+       destinationPoint(origin.lat, origin.lon, bearingDeg + 120, radiusKm)];
+}
+
+/* Toegelaten afwijking: 3 % van de doelafstand, minstens 300 m. */
+function routeToleranceKm(km){ return Math.max(0.3, km * 0.03); }
+
+/*
+  KERN VAN DE CORRECTIE: echte paden zijn langer dan een rechte lijn (bochten, omwegen),
+  typisch 20–40 %. De oude code legde de keerpunten op de rechte-lijnafstand, waardoor
+  bv. 12 km in de praktijk ±16 km werd.
+  Hier meten we de echte afstand, schalen de straal bij (straal × doel/gemeten) en
+  herhalen tot we binnen de tolerantie zitten (max. 4 keer). Daarbij leren we meteen
+  de "omwegfactor" van deze omgeving, die we daarna gebruiken om knooppunten te kiezen.
+*/
+async function calibrateGeoRoute(origin, km, shape, bearingDeg, statusCb){
+  const tol = routeToleranceKm(km);
+  let radius = km / GEO_DIVISOR[shape] / 1.3;   // startschatting: 30 % omweg
+  let best = null;
+  for(let i = 0; i < 4; i++){
+    statusCb(`Afstand afstemmen op echte paden (${i+1}/4)…`);
+    const wps = geoWaypoints(origin, shape, bearingDeg, radius);
+    const pts = [origin, ...wps, origin];
+    let dist;
+    try{ dist = await osrmRouteDistanceKm(pts); }
+    catch(e){
+      if(e.noRoute){ radius *= 0.9; continue; } // punt bv. in water: iets dichterbij proberen
+      throw e;
+    }
+    const diff = Math.abs(dist - km);
+    const detour = dist / straightLineKm(pts);
+    if(!best || diff < best.diffKm) best = { waypoints: wps, distKm: dist, diffKm: diff, radiusKm: radius, detour };
+    if(diff <= tol) break;
+    const ratio = Math.min(1.5, Math.max(0.5, km / dist));
+    radius *= ratio;
+  }
+  return best;
+}
+
+/*
+  Knooppunten-route: zoekt echte fiets-/wandelknooppunten rond de (gecorrigeerde)
+  ideale keerpunten, schat voor elke kandidaat(-combinatie) de afstand met de gemeten
+  omwegfactor, en test alleen de meest belovende via de routeservice.
+*/
+async function findKnooppuntenRoute(origin, km, shape, bearingDeg, calib, statusCb){
+  const tol = routeToleranceKm(km);
+  const detour = calib ? calib.detour : 1.3;
+  const radius = calib ? calib.radiusKm : km / GEO_DIVISOR[shape] / detour;
+
   statusCb('Fiets- en wandelknooppunten zoeken in de buurt…');
-  const searchRadiusM = Math.max(3000, km*650);
+  const searchRadiusM = Math.round(Math.max(3000, radius * 1000 * 2));
   const nodes = await queryOverpassKnooppunten(origin.lat, origin.lon, searchRadiusM);
   if(!nodes.length){
     return { found:false, reason:'Geen fiets- of wandelknooppunten gevonden rond dit startpunt (dit netwerk dekt vooral Nederland, België en delen van Duitsland/Frankrijk).' };
   }
 
+  const ideal = geoWaypoints(origin, shape, bearingDeg, radius);
+  let combos = [];
   if(shape === 'heenterug'){
-    const idealTurn = destinationPoint(origin.lat, origin.lon, bearingDeg, km/2);
-    const candidates = nearestNodes(nodes, idealTurn.lat, idealTurn.lon, 5);
-    let best = null;
-    for(let i=0; i<candidates.length; i++){
-      const c = candidates[i];
-      statusCb(`Knooppunt ${c.ref} testen (${i+1}/${candidates.length})…`);
-      try{
-        const dist = await osrmRouteDistanceKm([origin, c, origin]);
-        const diff = Math.abs(dist - km);
-        if(!best || diff < best.diff) best = { waypoints:[c], distKm:dist, diffKm:diff };
-        if(diff <= TARGET_TOLERANCE_KM) break;
-      } catch(e){ /* probeer het volgende knooppunt */ }
-    }
-    if(!best) return { found:false, reason:'Kon geen route via de gevonden knooppunten berekenen (routeservice niet bereikbaar).' };
-    return { found:true, ...best };
+    combos = nearestNodes(nodes, ideal[0].lat, ideal[0].lon, 12).map(c => [c]);
+  } else {
+    const c1 = nearestNodes(nodes, ideal[0].lat, ideal[0].lon, 6);
+    const c2 = nearestNodes(nodes, ideal[1].lat, ideal[1].lon, 6);
+    for(const a of c1) for(const b of c2) if(a.id !== b.id) combos.push([a, b]);
   }
+  combos = combos
+    .map(wps => ({ wps, estDiff: Math.abs(straightLineKm([origin, ...wps, origin]) * detour - km) }))
+    .sort((x, y) => x.estDiff - y.estDiff)
+    .slice(0, 8);
 
-  const R = km / 3.73;
-  const idealP1 = destinationPoint(origin.lat, origin.lon, bearingDeg, R);
-  const idealP2 = destinationPoint(origin.lat, origin.lon, bearingDeg+120, R);
-  const cand1 = nearestNodes(nodes, idealP1.lat, idealP1.lon, 3);
-  const cand2 = nearestNodes(nodes, idealP2.lat, idealP2.lon, 3);
   let best = null;
-  let tested = 0;
-  outer:
-  for(const a of cand1){
-    for(const b of cand2){
-      if(a.id === b.id) continue;
-      tested++;
-      statusCb(`Lus via knooppunt ${a.ref} → ${b.ref} testen…`);
-      try{
-        const dist = await osrmRouteDistanceKm([origin, a, b, origin]);
-        const diff = Math.abs(dist - km);
-        if(!best || diff < best.diff) best = { waypoints:[a,b], distKm:dist, diffKm:diff };
-        if(diff <= TARGET_TOLERANCE_KM) break outer;
-      } catch(e){ /* probeer de volgende combinatie */ }
-    }
+  for(let i = 0; i < combos.length; i++){
+    const wps = combos[i].wps;
+    statusCb(`Route via knooppunt ${wps.map(w => w.ref).join(' → ')} testen (${i+1}/${combos.length})…`);
+    try{
+      const dist = await osrmRouteDistanceKm([origin, ...wps, origin]);
+      const diff = Math.abs(dist - km);
+      if(!best || diff < best.diffKm) best = { waypoints: wps, distKm: dist, diffKm: diff };
+      if(diff <= tol) break;
+    } catch(e){ /* volgende kandidaat */ }
   }
-  if(!best) return { found:false, reason:'Kon geen lus via de gevonden knooppunten berekenen (routeservice niet bereikbaar).' };
+  if(!best) return { found:false, reason:'Kon geen route via de gevonden knooppunten berekenen (routeservice niet bereikbaar).' };
   return { found:true, ...best };
 }
 
+function diffSentence(diffKm, km){
+  const m = Math.round(diffKm * 1000);
+  return diffKm <= routeToleranceKm(km)
+    ? `dat is maar ${m} m van je doel`
+    : `dat wijkt ${m} m af van je doel`;
+}
+
+let routeRunId = 0; // voorkomt dat een oudere, tragere berekening een nieuwere overschrijft
+
 async function renderRouteResult(origin, km, shape, bearingDeg){
+  const runId = ++routeRunId;
   document.getElementById('routeEmptyState').style.display = 'none';
   document.getElementById('routeResults').style.display = 'block';
   const statusEl = document.getElementById('routeGeoStatus');
+  const status = msg => { if(runId === routeRunId) statusEl.textContent = msg; };
 
   document.getElementById('routeBibLabel').textContent = 'LOOPKOMPAS';
   document.getElementById('routeBibNumber').textContent = '…';
-  document.getElementById('routeNote').textContent = 'Route wordt berekend via het fiets- en wandelknooppuntennetwerk…';
+  document.getElementById('routeNote').textContent = 'Route wordt berekend en afgestemd op de gekozen afstand…';
   document.getElementById('routeLinkButtons').innerHTML = '';
   document.getElementById('routeDirQuick').innerHTML = '';
 
-  let result;
-  try{
-    result = await findKnooppuntenRoute(origin, km, shape, bearingDeg, msg => { statusEl.textContent = msg; });
-  } catch(e){
-    result = { found:false, reason:'De knooppuntendienst is niet bereikbaar (' + e.message + ').' };
-  }
+  const tol = routeToleranceKm(km);
+
+  // 1) geometrische route afstemmen op echte paden
+  let calib = null, calibError = null;
+  try{ calib = await calibrateGeoRoute(origin, km, shape, bearingDeg, status); }
+  catch(e){ calibError = e; }
+
+  // 2) knooppuntenroute zoeken
+  let knoop;
+  try{ knoop = await findKnooppuntenRoute(origin, km, shape, bearingDeg, calib, status); }
+  catch(e){ knoop = { found:false, reason:'De knooppuntendienst is niet bereikbaar (' + e.message + ').' }; }
+
+  if(runId !== routeRunId) return; // er is intussen een nieuwe berekening gestart
   statusEl.textContent = '';
 
-  let mapsUrl, noteText, subLine, actualKm;
-  if(result.found){
-    mapsUrl = mapsLoopUrl(origin, result.waypoints);
-    actualKm = result.distKm;
-    const refs = result.waypoints.map(w => `${w.ref} (${w.soort})`).join(' → ');
-    const diffText = result.diffKm <= 0.5
-      ? `dat is nog maar ${Math.round(result.diffKm*1000)} m van je doel`
-      : `dat wijkt ${Math.round(result.diffKm*1000)} m af van je doel — in dit gebied liggen de knooppunten wat verder uit elkaar`;
-    noteText = shape==='heenterug'
-      ? `Loop via knooppunt ${refs} en dezelfde weg terug. Werkelijke afstand over het knooppuntennetwerk: ${fmtKm(actualKm)} — ${diffText}.`
-      : `Een lus via de knooppunten ${refs} en terug naar je startpunt. Werkelijke afstand over het knooppuntennetwerk: ${fmtKm(actualKm)} — ${diffText}.`;
-    subLine = `<span>${shape==='lus' ? 'Lus' : 'Heen-en-terug'}</span><span>via knooppunten</span><span>Vanaf ${origin.label}</span>`;
+  // 3) kiezen: knooppunten als die goed genoeg zijn, anders de afgestemde kompasroute
+  const useKnoop = knoop.found && (!calib || knoop.diffKm <= tol || knoop.diffKm <= calib.diffKm);
+
+  let mapsUrl, noteText, subLine, bibText;
+  const vorm = shape === 'lus' ? 'Lus' : 'Heen-en-terug';
+  if(useKnoop){
+    mapsUrl = mapsLoopUrl(origin, knoop.waypoints);
+    bibText = fmtKm(knoop.distKm);
+    const refs = knoop.waypoints.map(w => `${w.ref} (${w.soort})`).join(' → ');
+    noteText = shape === 'heenterug'
+      ? `Loop via knooppunt ${refs} en dezelfde weg terug. Gemeten afstand over de paden: ${fmtKm(knoop.distKm)}, ${diffSentence(knoop.diffKm, km)}.`
+      : `Een lus via de knooppunten ${refs} en terug naar je startpunt. Gemeten afstand over de paden: ${fmtKm(knoop.distKm)}, ${diffSentence(knoop.diffKm, km)}.`;
+    subLine = `<span>${vorm}</span><span>via knooppunten</span><span>Vanaf ${origin.label}</span>`;
+  } else if(calib){
+    mapsUrl = mapsLoopUrl(origin, calib.waypoints);
+    bibText = fmtKm(calib.distKm);
+    const why = knoop.found
+      ? 'De knooppunten in deze richting liggen te ongunstig voor je afstand, daarom een route op kompasrichting.'
+      : knoop.reason + ' Daarom een route op kompasrichting.';
+    noteText = `${why} Afgestemd op echte paden: ${fmtKm(calib.distKm)}, ${diffSentence(calib.diffKm, km)}.`;
+    subLine = `<span>${vorm}</span><span>${dirFullLabel(bearingDeg)}</span><span>Vanaf ${origin.label}</span>`;
   } else {
-    // terugval: geen knooppuntendata gevonden of routeservice niet bereikbaar —
-    // toon de eerder berekende, zuiver geometrische route als alternatief
-    const geo = shape==='heenterug'
-      ? { waypoints:[destinationPoint(origin.lat, origin.lon, bearingDeg, km/2)] }
-      : { waypoints:[
-            destinationPoint(origin.lat, origin.lon, bearingDeg, km/3.73),
-            destinationPoint(origin.lat, origin.lon, bearingDeg+120, km/3.73)
-          ] };
-    mapsUrl = mapsLoopUrl(origin, geo.waypoints);
-    actualKm = km;
-    noteText = `${result.reason} Hieronder daarom een berekende route op basis van kompasrichting in plaats van echte knooppunten — controleer de afstand zelf in Google Maps.`;
-    subLine = `<span>${shape==='lus' ? 'Lus' : 'Heen-en-terug'}</span><span>${dirFullLabel(bearingDeg)} (geschat)</span><span>Vanaf ${origin.label}</span>`;
+    // geen enkele routeservice bereikbaar: ruwe schatting met 30 % omweg
+    const wps = geoWaypoints(origin, shape, bearingDeg, km / GEO_DIVISOR[shape] / 1.3);
+    mapsUrl = mapsLoopUrl(origin, wps);
+    bibText = '± ' + fmtKm(km);
+    noteText = `De routeservice is niet bereikbaar${calibError ? ' (' + calibError.message + ')' : ''}. Hieronder een geschatte route op kompasrichting — controleer de afstand zelf in Google Maps.`;
+    subLine = `<span>${vorm}</span><span>${dirFullLabel(bearingDeg)} (geschat)</span><span>Vanaf ${origin.label}</span>`;
   }
 
-  document.getElementById('routeBibNumber').textContent = fmtKm(actualKm).toUpperCase();
+  if(routeServerUsed === 'car' && (useKnoop || calib)){
+    noteText += ' Let op: de voetgangers-routeservice was niet bereikbaar, de afstand is gemeten via een auto-routeservice en kan daardoor afwijken.';
+  }
+  noteText += ' Google Maps kiest zelf de exacte paden tussen de punten, dus de afstand daar kan nog licht verschillen.';
+
+  document.getElementById('routeBibNumber').textContent = bibText.toUpperCase();
   document.getElementById('routeBibSub').innerHTML = subLine;
   document.getElementById('routeNote').textContent = noteText;
   document.getElementById('routeLinkButtons').innerHTML =
