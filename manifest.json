@@ -1,0 +1,19 @@
+{
+  "name": "An't Luupen",
+  "short_name": "An't Luupen",
+  "description": "Genereer je eigen loopschema (opbouw of conditie onderhouden) en stippel looproutes uit voor je lange duurloop.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F6F4EC",
+  "theme_color": "#2A1470",
+  "lang": "nl",
+  "dir": "ltr",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
