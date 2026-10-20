@@ -8,6 +8,12 @@
 <!-- PWA: installeerbaar als app op je gsm (zie LEES_MIJ_HOSTEN.txt voor hoe je dit online zet) -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2A1470">
+<script>
+  try{
+    var t = (JSON.parse(localStorage.getItem('antluupen_instellingen')||'{}')).theme;
+    if(t==='light' || t==='dark') document.documentElement.setAttribute('data-theme', t);
+  }catch(e){}
+</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -68,6 +74,39 @@
     --font-body:"Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 
     --container-max:1280px;
+
+    /* merkvlakken (header, knoppen, actieve keuzes) los van de tekstkleur, zodat de
+       donkere modus de tekst licht kan maken zonder dat de knoppen meekleuren */
+    --header-bg:#2A1470;
+    --brand:#2A1470;
+    --brand-hover:#1A0B47;
+    --on-brand:#F6F4EC;
+    --line-strong:#C7CDD6;
+    --warning-bg:#FBF3DE;
+    --focus-ring:rgba(42,20,112,0.18);
+    color-scheme:light;
+  }
+
+  /* ---- donkere modus: automatisch (instelling van het toestel) of handmatig gekozen ---- */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#ECE9F7; --ink-soft:#BDB4E2; --paper:#14111F; --panel:#1D1930; --panel-soft:#272140;
+      --line:#38315A; --muted:#9A94B6; --accent:#A78BFA; --accent-dark:#C4B5FD;
+      --header-bg:#221258; --brand:#4A32A8; --brand-hover:#5B43BC; --on-brand:#F6F4EC;
+      --line-strong:#585079; --warning-bg:#3A2D10; --focus-ring:rgba(167,139,250,0.30);
+      --shadow-card:0 1px 2px rgba(0,0,0,0.35); --shadow-raised:0 10px 28px rgba(0,0,0,0.45);
+      --shadow-bib:0 16px 34px rgba(0,0,0,0.55);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#ECE9F7; --ink-soft:#BDB4E2; --paper:#14111F; --panel:#1D1930; --panel-soft:#272140;
+    --line:#38315A; --muted:#9A94B6; --accent:#A78BFA; --accent-dark:#C4B5FD;
+    --header-bg:#221258; --brand:#4A32A8; --brand-hover:#5B43BC; --on-brand:#F6F4EC;
+    --line-strong:#585079; --warning-bg:#3A2D10; --focus-ring:rgba(167,139,250,0.30);
+    --shadow-card:0 1px 2px rgba(0,0,0,0.35); --shadow-raised:0 10px 28px rgba(0,0,0,0.45);
+    --shadow-bib:0 16px 34px rgba(0,0,0,0.55);
+    color-scheme:dark;
   }
 
   *{ box-sizing:border-box; }
@@ -84,7 +123,7 @@
   }
   h1,h2,h3{ font-family:var(--font-display); margin:0; }
   a{ color:inherit; }
-  ::selection{ background:var(--accent); color:#fff; }
+  ::selection{ background:var(--brand); color:var(--on-brand); }
 
   :focus-visible{
     outline:2.5px solid var(--accent);
@@ -101,8 +140,9 @@
      ============================================================ */
   .app-header{
     padding:20px clamp(16px,4vw,32px);
-    background:var(--ink);
-    color:var(--paper);
+    padding-top:calc(20px + env(safe-area-inset-top, 0px));
+    background:var(--header-bg);
+    color:var(--on-brand);
     display:flex;
     align-items:center;
     gap:14px;
@@ -119,11 +159,42 @@
     color:#AEB9CC;
   }
 
+  /* ---- tandwiel rechtsboven (instellingen) ---- */
+  .settings-btn{
+    margin-left:auto; align-self:flex-start; flex:0 0 auto;
+    width:42px; height:42px; border-radius:50%; display:grid; place-items:center;
+    background:rgba(255,255,255,0.08); border:1.5px solid rgba(255,255,255,0.18);
+    color:var(--on-brand); cursor:pointer; transition:background 0.15s ease, transform 0.3s ease;
+  }
+  .settings-btn:hover{ background:rgba(255,255,255,0.16); }
+  .settings-btn:active{ transform:rotate(40deg); }
+  .settings-btn.active{ background:var(--accent-gold); border-color:var(--accent-gold); color:#2A1470; }
+  .settings-btn svg{ width:21px; height:21px; }
+
+  /* ---- inspirerend citaat in de header ---- */
+  .titles{ order:1; }
+  .settings-btn{ order:2; }
+  .header-quote{
+    order:3; flex:1 1 100%; margin:4px 0 0; padding:10px 0 2px 14px;
+    border-left:3px solid var(--accent-gold);
+  }
+  @media (min-width: 761px){
+    /* breed scherm: titel links, citaat in het midden, tandwiel helemaal rechts */
+    .header-quote{ order:2; flex:0 1 620px; margin:0 0 0 auto; padding:2px 0 2px 14px; }
+    .settings-btn{ order:3; margin-left:20px; align-self:center; }
+  }
+  .header-quote blockquote{
+    margin:0; font-family:var(--font-display); font-weight:500; font-size:14.5px; line-height:1.45;
+    color:var(--on-brand); font-style:italic;
+  }
+  .header-quote figcaption{ margin-top:3px; font-size:12px; color:#AEB9CC; }
+  .header-quote figcaption .src{ opacity:0.85; }
+
   /* ---- hoofdnavigatie: Loopschema vs Loopkompas (volledig gescheiden views) ---- */
   .app-tabs{
     display:flex;
     gap:2px;
-    background:var(--ink);
+    background:var(--header-bg);
     padding:0 clamp(16px,4vw,32px);
     overflow-x:auto;
   }
@@ -152,7 +223,7 @@
     background:var(--panel); color:var(--ink-soft); font-size:12.5px; font-weight:600;
     cursor:pointer; transition:background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   }
-  .day-picker .dir-toggle.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+  .day-picker .dir-toggle.active{ background:var(--brand); border-color:var(--brand); color:var(--on-brand); }
 
   .route-note{
     font-size:14px; color:var(--ink-soft); line-height:1.6;
@@ -165,7 +236,7 @@
     background:var(--panel); color:var(--ink-soft); font-size:12.5px; font-weight:600;
     font-family:var(--font-body); cursor:pointer; transition:background 0.12s ease, border-color 0.12s ease;
   }
-  .dir-quick-grid button:hover{ border-color:var(--ink); color:var(--ink); }
+  .dir-quick-grid button:hover{ border-color:var(--ink-soft); color:var(--ink); }
 
   /* ============================================================
      LAYOUT
@@ -235,11 +306,11 @@
     background-size:16px;
     padding-right:34px;
   }
-  .field input:hover, .field select:hover{ border-color:#C7CDD6; }
+  .field input:hover, .field select:hover{ border-color:var(--line-strong); }
   .field input:focus, .field select:focus{
     outline:none;
     border-color:var(--accent);
-    box-shadow:0 0 0 3px rgba(42,20,112,0.18);
+    box-shadow:0 0 0 3px var(--focus-ring);
   }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
@@ -262,17 +333,17 @@
     margin:0;
     transition:background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   }
-  .radio-group label:hover{ border-color:#C7CDD6; }
+  .radio-group label:hover{ border-color:var(--line-strong); }
   .radio-group input{ position:absolute; opacity:0; width:1px; height:1px; }
   .radio-group label:has(input:checked){
-    background:var(--ink);
-    border-color:var(--ink);
-    color:var(--paper);
+    background:var(--brand);
+    border-color:var(--brand);
+    color:var(--on-brand);
   }
   .radio-group label:has(input:focus-visible){ outline:2.5px solid var(--accent); outline-offset:2px; }
 
   .checkbox-line{ display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
-  .checkbox-line input{ width:18px; height:18px; margin-top:2px; flex:none; accent-color:var(--ink); }
+  .checkbox-line input{ width:18px; height:18px; margin-top:2px; flex:none; accent-color:var(--brand); }
   .checkbox-line label{ font-size:13.5px; color:var(--ink-soft); margin:0; }
 
   fieldset{ border:none; padding:0; margin:0 0 26px; }
@@ -292,9 +363,9 @@
     width:100%;
     padding:14px 16px;
     border-radius:var(--radius-sm);
-    border:1.5px solid var(--ink);
-    background:var(--ink);
-    color:var(--paper);
+    border:1.5px solid var(--brand);
+    background:var(--brand);
+    color:var(--on-brand);
     font-family:var(--font-body);
     font-size:14.5px;
     font-weight:600;
@@ -302,7 +373,8 @@
     text-align:center;
     transition:background 0.12s ease, transform 0.05s ease;
   }
-  .btn:hover{ background:#232c38; }
+  .btn:hover{ background:var(--brand-hover); border-color:var(--brand-hover); }
+  .btn:disabled{ opacity:0.6; cursor:wait; }
   .btn:active{ transform:translateY(1px); }
   .btn.secondary{
     background:transparent;
@@ -312,7 +384,7 @@
     font-weight:600;
     padding:10px 12px;
   }
-  .btn.secondary:hover{ background:var(--panel-soft); border-color:#C7CDD6; }
+  .btn.secondary:hover{ background:var(--panel-soft); border-color:var(--line-strong); }
   .btn.small{ width:auto; padding:7px 12px; font-size:12px; }
   .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
   .btn-row .btn.secondary{ flex:1 1 auto; width:auto; }
@@ -353,7 +425,7 @@
     cursor:pointer;
     transition:background 0.12s ease, border-color 0.12s ease;
   }
-  .day-toggle.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+  .day-toggle.active{ background:var(--brand); border-color:var(--brand); color:var(--on-brand); }
   .day-toggle.is-long{ background:var(--c-lange); border-color:var(--c-lange); color:#fff; cursor:default; }
   .day-toggle.is-long.active{ background:var(--c-lange); border-color:var(--c-lange); }
   .day-picker-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:8px; flex-wrap:wrap; }
@@ -382,12 +454,13 @@
     min-width:0;
   }
   .race-row input:focus, .race-row select:focus{
-    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(42,20,112,0.18);
+    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--focus-ring);
   }
   .race-row .rc-date{ flex:1 1 130px; }
   .race-row .rc-km{ flex:1 1 170px; }
   .race-row .rc-name{ flex:2 1 160px; }
   .race-row .rc-priority{ flex:1 1 100px; }
+  .race-row .rc-time{ flex:1 1 150px; }
   .race-row .rc-remove{ flex:0 0 auto; margin-left:auto; }
   .race-row .btn.small{ padding:8px 11px; }
 
@@ -402,6 +475,7 @@
   table.hr-table input{
     width:100%; padding:7px 8px; border:1.5px solid var(--line); border-radius:var(--radius-sm);
     font-size:13px; font-family:var(--font-body);
+    background:var(--panel); color:var(--ink);
   }
   @media (max-width:400px){
     table.hr-table td:first-child{ font-size:11.5px; }
@@ -424,8 +498,8 @@
   .bib-wrap{ display:flex; justify-content:center; margin-bottom:32px; }
   .bib{
     position:relative;
-    background:var(--ink);
-    color:var(--paper);
+    background:var(--header-bg);
+    color:var(--on-brand);
     border-radius:10px;
     padding:24px clamp(28px,8vw,48px);
     text-align:center;
@@ -529,7 +603,7 @@
   }
   .week-head{
     display:flex; justify-content:space-between; align-items:baseline;
-    background:var(--ink); color:var(--paper);
+    background:var(--header-bg); color:var(--on-brand);
     padding:12px 16px;
     gap:10px 16px;
     flex-wrap:wrap;
@@ -556,7 +630,7 @@
   }
 
   .sched-check{ order:1; flex:0 0 20px; display:flex; align-items:center; justify-content:center; }
-  .done-check{ width:18px; height:18px; cursor:pointer; accent-color:var(--ink); }
+  .done-check{ width:18px; height:18px; cursor:pointer; accent-color:var(--brand); }
 
   .sched-day{ order:2; flex:1 1 auto; min-width:96px; display:flex; flex-direction:column; line-height:1.3; }
   .sched-day-name{ font-weight:600; font-size:13.5px; }
@@ -615,7 +689,7 @@
   .buildup-warning{
     display:flex; gap:10px; align-items:flex-start;
     font-size:13.5px; line-height:1.55; color:var(--ink);
-    background:#FBF3DE; border:1.5px solid var(--warning); border-radius:var(--radius-md);
+    background:var(--warning-bg); border:1.5px solid var(--warning); border-radius:var(--radius-md);
     padding:13px 16px; margin-bottom:24px;
   }
   .buildup-warning .icon{ flex:0 0 auto; font-size:16px; line-height:1.3; }
@@ -638,8 +712,121 @@
     margin:0 auto;
   }
 
+  /* ============================================================
+     NIEUW: training van vandaag
+     ============================================================ */
+  .today-card{
+    background:var(--panel); border:1.5px solid var(--line); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-card); padding:18px 18px 16px; margin-bottom:28px;
+  }
+  .today-card .today-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .today-card .today-label{ font-family:var(--font-display); font-weight:600; font-size:11.5px; letter-spacing:1.4px; color:var(--accent-gold); text-transform:uppercase; }
+  .today-card .today-date{ font-size:12.5px; color:var(--muted); }
+  .today-card .today-main{ display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin:8px 0 6px; }
+  .today-card .today-km{ font-family:var(--font-display); font-weight:700; font-size:30px; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .today-card .today-facts{ display:flex; gap:6px 16px; flex-wrap:wrap; font-size:13px; color:var(--ink-soft); margin-bottom:6px; }
+  .today-card .today-facts strong{ color:var(--ink); font-weight:600; }
+  .today-card .today-note{ font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:4px 0 12px; }
+  .today-card .today-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .today-card .today-actions .btn{ width:auto; padding:11px 18px; }
+  .today-card .today-actions .btn.is-done{ background:var(--c-rustig); border-color:var(--c-rustig); }
+  .today-card .today-next{ font-size:12.5px; color:var(--muted); margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+  .today-card .today-week{ font-size:12.5px; color:var(--muted); }
+  .progress-bar{ height:6px; background:var(--panel-soft); border-radius:99px; overflow:hidden; margin-top:6px; }
+  .progress-bar span{ display:block; height:100%; background:var(--c-rustig); border-radius:99px; transition:width 0.25s ease; }
+
+  /* ---- formulier inklappen op gsm zodra er een schema is ---- */
+  .form-toggle{ display:none; }
+  @media (max-width: 960px){
+    .layout.has-schedule .form-toggle{ display:block; }
+    .layout.has-schedule:not(.form-open) .form-panel .form-collapsible{ display:none; }
+    .layout.has-schedule .form-panel{ padding-bottom:20px; }
+  }
+
+  /* ---- grafiek: schaallijnen, huidige week, details ---- */
+  #chartHost svg .bar{ cursor:pointer; }
+  #chartHost svg .bar:focus{ outline:none; }
+  #chartHost svg .bar:focus-visible rect.fill{ stroke:var(--accent); stroke-width:2.5; }
+  #chartHost svg .bar.selected rect.fill{ stroke:var(--ink); stroke-width:2; }
+  .chart-hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .chart-detail{
+    margin-top:10px; padding:12px 14px; font-size:13px; color:var(--ink-soft); line-height:1.55;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md);
+    display:flex; justify-content:space-between; align-items:center; gap:8px 14px; flex-wrap:wrap;
+  }
+  .chart-detail strong{ color:var(--ink); }
+  .chart-detail .btn{ width:auto; }
+
+  /* ---- wedstrijdrij: tijdsadvies (Riegel) ---- */
+  .race-row .rc-advice{ flex:1 1 100%; font-size:12px; line-height:1.5; color:var(--muted); display:none; }
+  .race-row .rc-advice.show{ display:flex; gap:6px 10px; align-items:center; flex-wrap:wrap; }
+  .race-row .rc-advice .warn{ color:var(--warning); font-weight:600; }
+  .race-row .rc-advice button{
+    border:1.5px solid var(--line); background:var(--panel-soft); color:var(--ink); border-radius:var(--radius-pill);
+    padding:3px 10px; font-size:11.5px; font-weight:600; font-family:var(--font-body); cursor:pointer;
+  }
+  .recent-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .recent-row select{ flex:2 1 170px; }
+  .recent-row input{ flex:1 1 110px; }
+
+  /* ---- laadindicator ---- */
+  .spinner{
+    display:inline-block; width:16px; height:16px; border-radius:50%; vertical-align:-3px; margin-right:8px;
+    border:2.5px solid var(--line); border-top-color:var(--accent); animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .route-loading{ display:flex; align-items:center; gap:4px; font-size:13.5px; color:var(--ink-soft); }
+
+  /* ---- kaart Loopkompas ---- */
+  .route-map{
+    height:clamp(260px, 52vh, 460px); border-radius:var(--radius-md); border:1px solid var(--line);
+    overflow:hidden; margin-bottom:14px; background:var(--panel-soft);
+  }
+  .route-map .leaflet-container{ font-family:var(--font-body); }
+  :root[data-theme="dark"] .route-map .leaflet-tile-pane{ filter:brightness(0.82) contrast(1.08) saturate(0.85); }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .route-map .leaflet-tile-pane{ filter:brightness(0.82) contrast(1.08) saturate(0.85); }
+  }
+  .knoop-marker{
+    background:var(--brand); color:var(--on-brand); border:2px solid #fff; border-radius:50%;
+    width:28px; height:28px; line-height:24px; text-align:center; font-weight:700; font-size:11.5px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.35);
+  }
+  .start-marker{
+    background:var(--accent-gold); border:3px solid #fff; border-radius:50%; width:20px; height:20px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.35);
+  }
+
+  /* ---- update-melding ---- */
+  .update-bar{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:2000;
+    display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center;
+    background:var(--header-bg); color:var(--on-brand); padding:12px 14px 12px 18px;
+    border-radius:var(--radius-md); box-shadow:var(--shadow-raised); font-size:13.5px;
+    width:max-content; max-width:calc(100% - 24px);
+  }
+  .update-bar .btn{ width:auto; background:var(--accent-gold); border-color:var(--accent-gold); color:#2A1470; padding:8px 14px; }
+  .update-bar .close{ background:none; border:none; color:var(--on-brand); font-size:18px; cursor:pointer; padding:0 4px; opacity:0.8; }
+
+  /* ---- instellingen / over deze app ---- */
+  .settings-wrap{ max-width:760px; margin:0 auto; padding:28px clamp(16px,4vw,32px) 64px; }
+  .settings-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-card); padding:20px; margin-bottom:18px;
+  }
+  .settings-card h2{ font-size:16px; font-weight:600; margin-bottom:6px; }
+  .settings-card p{ font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin:6px 0 12px; }
+  .settings-card ul{ font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin:6px 0 12px; padding-left:20px; }
+  .settings-card .btn-row .btn{ flex:1 1 auto; width:auto; }
+  .settings-card .version{ font-variant-numeric:tabular-nums; color:var(--muted); font-size:12.5px; }
+  .settings-status{ font-size:12.5px; color:var(--c-rustig); margin-top:8px; min-height:1em; }
+  .settings-card a{ color:var(--ink); text-underline-offset:2px; }
+  .osm-credit{ font-size:11.5px; color:var(--muted); margin-top:8px; }
+  .osm-credit a{ color:inherit; }
+
   @media print{
-    .form-panel, .tabs, .btn-row, footer, .app-header .btn, #printHideCal, .app-tabs, #routesView { display:none !important; }
+    .form-panel, .tabs, .btn-row, footer, .app-header .btn, #printHideCal, .app-tabs, #routesView, #settingsView, #todayCard, .update-bar, .chart-detail, .chart-hint { display:none !important; }
     .layout{ grid-template-columns:1fr; }
     body{ font-size:12px; }
     .sched-detail{ display:block !important; }
@@ -654,6 +841,16 @@
     <h1>An't Luupen</h1>
     <span class="split">Bouw je eigen trainingsschema, voor elke afstand</span>
   </div>
+  <button type="button" class="settings-btn" id="settingsBtn" aria-label="Instellingen" aria-pressed="false" title="Instellingen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
+  <figure class="header-quote" id="headerQuote" style="display:none;">
+    <blockquote id="headerQuoteText"></blockquote>
+    <figcaption id="headerQuoteAuthor"></figcaption>
+  </figure>
 </header>
 
 <nav class="app-tabs" id="appTabs">
@@ -668,6 +865,8 @@
        INVOERFORMULIER
        ============================================================ -->
   <aside class="form-panel">
+    <button type="button" class="btn secondary form-toggle" id="formToggleBtn" aria-expanded="false">Schema aanpassen ▾</button>
+    <div class="form-collapsible">
     <div class="tabs" id="formTabs">
       <button type="button" class="tab-btn active" data-tab="basisTab">Basis</button>
       <button type="button" class="tab-btn" data-tab="advancedTab">Geavanceerd</button>
@@ -711,7 +910,22 @@
                   Markeer je hoofddoel als <strong>A-doel</strong> — daar bouwt het schema naartoe, met een
                   volledige taper erop afgestemd. Andere wedstrijden markeer je als <strong>B-doel</strong>:
                   een tussentijdse test met een lichte aanpassing, waarna de opbouw richting je A-doel gewoon
-                  doorgaat. Heb je meerdere A-doelen, dan geldt de laatste in de tijd als hoofddoel.
+                  doorgaat. Heb je meerdere A-doelen, dan geldt de laatste in de tijd als hoofddoel.<br>
+                  Per wedstrijd kun je een <strong>streeftijd</strong> invullen (bv. 55:00 of 1:45:00). Laat je die leeg,
+                  dan is het doel uitlopen. De streeftijd van je hoofddoel bepaalt de trainingstempo's; die van een
+                  B-doel geeft het tempo voor die wedstrijddag zelf.
+                </div>
+              </div>
+              <div class="field">
+                <label for="recentKm">Recente wedstrijd- of testtijd (optioneel)</label>
+                <div class="recent-row">
+                  <select id="recentKm" aria-label="Afstand recente tijd"></select>
+                  <input type="text" id="recentTime" placeholder="bv. 52:30" aria-label="Recente tijd">
+                </div>
+                <div class="hint">
+                  Een tijd van de laatste maanden, voluit gelopen. Bij elke wedstrijd hierboven verschijnt dan een
+                  haalbare schatting (formule van Riegel). Hoe verder de afstand van je recente tijd afligt, hoe ruwer
+                  de schatting — vooral naar de marathon toe valt ze voor recreatieve lopers vaak te optimistisch uit.
                 </div>
               </div>
             </div>
@@ -722,7 +936,7 @@
               <div class="hint">Zonder wedstrijd bouw je op tot deze afstand; het schema eindigt met een laatste lange duurloop i.p.v. een wedstrijddag.</div>
             </div>
 
-            <div class="field">
+            <div class="field" id="goalTypeField" style="display:none;">
               <label>Wat is je doel?</label>
               <div class="radio-group" id="goalTypeGroup">
                 <label><input type="radio" name="goalType" value="uitlopen" checked><span>Uitlopen</span></label>
@@ -884,6 +1098,7 @@
         <button type="button" id="newScheduleBtn" class="btn secondary">Nieuw schema starten</button>
       </div>
     </form>
+    </div>
   </aside>
 
   <!-- ============================================================
@@ -895,6 +1110,8 @@
     </div>
 
     <div id="results" style="display:none;">
+
+      <div id="todayCard" class="today-card" style="display:none;"></div>
 
       <div class="bib-wrap">
         <div class="bib">
@@ -911,6 +1128,8 @@
       <div class="chart-section">
         <h2>Opbouw per week</h2>
         <div id="chartHost"></div>
+        <div class="chart-hint" id="chartHint" style="display:none;">Veeg opzij om alle weken te zien · tik op een week voor details</div>
+        <div class="chart-detail" id="chartDetail" style="display:none;"></div>
       </div>
 
       <div class="legend" id="legend"></div>
@@ -951,11 +1170,10 @@
   <!-- ============================================================
        LOOPKOMPAS — ROUTEGENERATOR VOOR DE LANGE DUURLOOP
        Volledig los van de loopschema-generator hierboven: eigen invoer,
-       eigen berekening, eigen resultaat. Genereert geen exacte kaart zelf
-       (daarvoor is een betaalde routeplanner-API nodig), maar berekent een
-       startpunt-onafhankelijke lus of heen-en-terug-route op basis van
-       kompasrichting en afstand, en opent die kant-en-klaar in Google Maps
-       (loopnavigatie) of Waze (naar het keerpunt).
+       eigen berekening, eigen resultaat. Berekent een lus of heen-en-terug-route
+       via knooppunten of kompasrichting, afgestemd op echte voetpaden (OSRM),
+       toont die op een OpenStreetMap-kaart en levert een GPX-bestand en een
+       link naar Google Maps.
        ============================================================ -->
   <aside class="form-panel">
     <form id="routeForm" onsubmit="return false;">
@@ -984,11 +1202,7 @@
             <label><input type="radio" name="routeShape" value="heenterug"><span>Heen-en-terug</span></label>
           </div>
         </div>
-        <div class="field">
-          <label>Vertrekrichting</label>
-          <div class="day-picker" id="routeDirectionPicker"></div>
-          <div class="hint">Kies de kompasrichting waarin je wilt starten — de rest van de route wordt hierop berekend.</div>
-        </div>
+        <div class="hint">De vertrekrichting kiest de app telkens willekeurig, zodat je steeds een nieuwe route krijgt.</div>
       </fieldset>
 
       <button type="button" class="btn" id="generateRouteBtn">Genereer route</button>
@@ -1009,21 +1223,24 @@
         </div>
       </div>
 
+      <div class="route-map" id="routeMap" style="display:none;"></div>
+
       <div class="route-note" id="routeNote"></div>
 
       <div class="btn-row" id="routeLinkButtons"></div>
 
-      <div class="garmin-note">
-        Deze route loopt via echte, bestaande fiets- en wandelknooppunten (dezelfde
-        genummerde palen als op de knooppuntnetwerken in Nederland en België), gezocht
-        rond je ideale kompasrichting en getest op werkelijke afstand — zo dicht mogelijk
-        bij je doel, met een streefmarge van 500 m. Vind je in het veld geen data? Dan
-        krijg je automatisch een berekend alternatief op basis van kompasrichting; check
-        de afstand dan zelf in Google Maps.
+      <div class="garmin-note" style="margin-bottom:28px;">
+        De route loopt bij voorkeur via echte fiets- en wandelknooppunten (de genummerde palen
+        in België en Nederland), gezocht rond een willekeurige richting en getest op de werkelijke afstand
+        over voetpaden, met een marge van 3 % (minstens 300 m). Zijn er geen geschikte knooppunten,
+        dan krijg je een route op kompasrichting, eveneens afgestemd op echte paden.
+        Het GPX-bestand importeer je in Garmin Connect via Training → Cursussen → Importeren,
+        of in de meeste andere sport-apps.
+        <div class="osm-credit">Kaart- en routedata © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-bijdragers</a> · routeberekening OSRM via FOSSGIS</div>
       </div>
 
       <div class="chart-section">
-        <h2>Andere richting proberen</h2>
+        <h2>Niet helemaal je ding?</h2>
         <div class="dir-quick-grid" id="routeDirQuick"></div>
       </div>
     </div>
@@ -1032,13 +1249,85 @@
 </div>
 </section>
 
+<section id="settingsView" class="app-view">
+  <div class="settings-wrap">
+
+    <div class="settings-card">
+      <h2>Weergave</h2>
+      <p>Kies licht of donker, of laat de app de instelling van je toestel volgen.</p>
+      <div class="radio-group" id="themeGroup">
+        <label><input type="radio" name="themeChoice" value="auto" checked><span>Automatisch</span></label>
+        <label><input type="radio" name="themeChoice" value="light"><span>Licht</span></label>
+        <label><input type="radio" name="themeChoice" value="dark"><span>Donker</span></label>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <h2>Agenda-export</h2>
+      <p>Herinnering bij elke training wanneer je het schema als .ics in je agenda zet. Sommige agenda-apps
+        (o.a. Google Agenda) negeren herinneringen uit een geïmporteerd bestand en gebruiken hun eigen standaard.</p>
+      <div class="radio-group" id="icsReminderGroup">
+        <label><input type="radio" name="icsReminder" value="none"><span>Geen</span></label>
+        <label><input type="radio" name="icsReminder" value="evening" checked><span>Avond ervoor (20:00)</span></label>
+        <label><input type="radio" name="icsReminder" value="morning"><span>Zelfde dag (7:00)</span></label>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <h2>Back-up en overzetten</h2>
+      <p>Je schema, je afgevinkte trainingen en je instellingen staan alleen op dit toestel. Maak een back-upbestand
+        om ze te bewaren of over te zetten naar een andere gsm of browser.</p>
+      <div class="btn-row">
+        <button type="button" class="btn secondary" id="backupExportBtn">Back-up maken</button>
+        <button type="button" class="btn secondary" id="backupImportBtn">Back-up terugzetten</button>
+      </div>
+      <input type="file" id="backupFileInput" accept=".json,application/json" style="display:none;">
+      <div class="settings-status" id="backupStatus"></div>
+    </div>
+
+    <div class="settings-card">
+      <h2>Over deze app</h2>
+      <p><strong>An't Luupen</strong> maakt een loopschema op maat en stippelt looproutes uit voor je duurlopen.
+        <br><span class="version" id="aboutVersion"></span></p>
+
+      <h2 style="margin-top:16px;">Gezondheid</h2>
+      <p>Dit is een algemeen, automatisch berekend schema — geen medisch advies. Bouw rustig op, luister naar je
+        lichaam en raadpleeg een arts bij pijn, klachten of twijfel over je gezondheid, zeker als je (opnieuw) begint met lopen.</p>
+
+      <h2 style="margin-top:16px;">Privacy</h2>
+      <ul>
+        <li>Er is geen account. Je schema, voortgang en instellingen worden alleen in de browseropslag van dit toestel bewaard.</li>
+        <li>Bij het Loopkompas gaan je ingetypte adres of je locatie naar diensten van OpenStreetMap: Nominatim (adres opzoeken),
+          Overpass (knooppunten) en de routeservers van FOSSGIS (afstand berekenen). De kaart laadt tegels van openstreetmap.org.</li>
+        <li>Klik je op “Open route in Google Maps”, dan gaan de routepunten naar Google.</li>
+        <li>De lettertypes worden van Google Fonts geladen; daarbij ziet Google je IP-adres.</li>
+      </ul>
+
+      <h2 style="margin-top:16px;">Bronnen</h2>
+      <ul>
+        <li>Kaart-, adres- en knooppuntdata © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-bijdragers</a>, beschikbaar onder de Open Database License.</li>
+        <li>Routeberekening: OSRM, gehost door FOSSGIS (routing.openstreetmap.de).</li>
+        <li>Kaartweergave: Leaflet.</li>
+        <li>Tijdsschatting: formule van Peter Riegel (T2 = T1 × (D2/D1)<sup>1,06</sup>).</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
 <footer>
+  <strong>Geen medisch advies.</strong>
   Dit schema is een automatisch gegenereerde richtlijn op basis van algemene trainingsprincipes.
   Luister naar je lichaam, pas het schema aan waar nodig en raadpleeg een arts bij twijfel over je gezondheid.
   Hartslagzones op basis van 220 − leeftijd zijn een grove schatting; gebruik je eigen gemeten waarden als je die hebt.
+  <br><span id="footerVersion"></span>
 </footer>
 
 <script>
+// Versienummer van de app. Bij elke aanpassing ophogen: zo ziet de app op je gsm dat er
+// een nieuwe versie online staat en toont hij de melding "Nieuwe versie beschikbaar".
+const APP_VERSION = '1.1.0';
+
 /* ================================================================
    CONFIG — pas hier de trainingslogica aan
    ================================================================ */
@@ -1203,6 +1492,14 @@ function paceMinPerKmToStr(pace){
   return m + ':' + String(s).padStart(2,'0') + ' /km';
 }
 
+// wedstrijdtijd als u:mm:ss of mm:ss (in tegenstelling tot durationMinToStr behoudt dit de seconden)
+function raceTimeToStr(min){
+  const total = Math.round(min*60);
+  const h = Math.floor(total/3600), m = Math.floor((total%3600)/60), sec = total%60;
+  const ss = String(sec).padStart(2,'0');
+  return h>0 ? `${h}:${String(m).padStart(2,'0')}:${ss}` : `${m}:${ss}`;
+}
+
 function durationMinToStr(min){
   const h = Math.floor(min/60);
   const m = Math.round(min%60);
@@ -1214,10 +1511,23 @@ function fmtKm(km){
 }
 
 function fmtDate(d){
-  return d.toLocaleDateString('nl-NL', { weekday:'short', day:'numeric', month:'short' });
+  return d.toLocaleDateString('nl-BE', { weekday:'short', day:'numeric', month:'short' });
 }
 function isoDate(d){
+  // LET OP: dit is de UTC-datum. In België (UTC+1/+2) valt middernacht lokaal hierdoor op de
+  // vorige dag. Blijft zo voor de opslagsleutels van bestaande schema's en voortgang (anders
+  // raak je je afgevinkte trainingen kwijt); gebruik localIsoDate voor alles wat je toont.
   return d.toISOString().slice(0,10);
+}
+function localIsoDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDateLong(d){
+  const t = d.toLocaleDateString('nl-BE', { weekday:'long', day:'numeric', month:'long' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 /* ================================================================
@@ -1759,7 +2069,8 @@ function generateSchedule(settings){
         // dit is expliciet de door de gebruiker gekozen dag voor de lange duurloop
         if(isLastWeek){
           if(raceMode==='wedstrijd'){
-            const label = raceName ? `Dit is je wedstrijddag: ${raceName}. Succes!` : 'Dit is je wedstrijddag. Succes!';
+            const timeTxt = (goalType==='tijd' && targetMinutes) ? ` Streeftijd ${raceTimeToStr(targetMinutes)}.` : '';
+            const label = (raceName ? `Dit is je wedstrijddag: ${raceName}.` : 'Dit is je wedstrijddag.') + timeTxt + ' Succes!';
             entry = { type:'wedstrijd', km:distanceKm, pace: goalPace ? goalPace*CONFIG.paceMultiplier.wedstrijd : null,
                       hr: hrRangeFor('wedstrijd', hrZones), note:label };
           } else {
@@ -1799,7 +2110,7 @@ function generateSchedule(settings){
                   hr: hrRangeFor(role, hrZones), note };
       }
 
-      entry.km = Math.round(entry.km*2)/2; // afronden op 0,5 km
+      if(entry.type!=='wedstrijd' && entry.type!=='doel') entry.km = Math.round(entry.km*2)/2; // afronden op 0,5 km (wedstrijdafstand blijft exact)
       entry.date = date;
       entry.weekIndex = w;
       entry.id = 'w'+w+'d'+dow;
@@ -2045,9 +2356,10 @@ function applyExtraRaces(weeks, extraRaces, hrZones){
     entry.type = 'wedstrijd';
     entry.priority = race.priority;
     entry.km = race.distanceKm;
-    entry.pace = null;
+    entry.pace = race.targetMinutes ? goalPaceForDistance(race.distanceKm, race.targetMinutes)*CONFIG.paceMultiplier.wedstrijd : null;
     entry.hr = hrRangeFor('wedstrijd', hrZones);
-    entry.note = `Wedstrijd${race.name ? ' — '+race.name : ''} (${label})`;
+    entry.note = `Wedstrijd${race.name ? ' — '+race.name : ''} (${label})`
+      + (race.targetMinutes ? ` — streeftijd ${raceTimeToStr(race.targetMinutes)}` : ' — uitlopen');
 
     const idx = allDays.indexOf(entry);
 
@@ -2135,7 +2447,7 @@ function showRestoreBanner(generatedAtIso){
   const banner = document.createElement('div');
   banner.id = 'restoreBanner';
   banner.className = 'restore-banner';
-  const dateLabel = new Date(generatedAtIso).toLocaleDateString('nl-NL', { day:'numeric', month:'long', year:'numeric' });
+  const dateLabel = new Date(generatedAtIso).toLocaleDateString('nl-BE', { day:'numeric', month:'long', year:'numeric' });
   banner.innerHTML = `<span>Je laatst opgeslagen schema (gegenereerd op ${dateLabel}) is hersteld.</span>
     <button type="button" class="btn secondary small" id="dismissRestoreBanner">OK</button>`;
   const results = document.getElementById('results');
@@ -2185,6 +2497,9 @@ function renderAll(schedule, settings){
   renderLegend(schedule);
   renderTable(schedule);
   renderCalendar(schedule);
+  renderToday();
+  document.querySelector('#schemaView .layout').classList.remove('form-open');
+  updateFormCollapse();
 }
 
 function renderBuildupWarning(schedule, settings){
@@ -2224,7 +2539,7 @@ function renderBib(schedule, settings){
   const sub = [];
   sub.push(schedule.totalWeeks + ' weken schema');
   sub.push(settings.level.charAt(0).toUpperCase()+settings.level.slice(1));
-  if(settings.goalType==='tijd') sub.push('Streeftijd ' + durationMinToStr(settings.targetMinutes));
+  if(settings.goalType==='tijd') sub.push('Streeftijd ' + raceTimeToStr(settings.targetMinutes));
   if(settings.raceMode==='wedstrijd' && settings.raceName) sub.push(settings.raceName);
   document.getElementById('bibSub').innerHTML = sub.map(s=>'<span>'+s+'</span>').join('');
 }
@@ -2248,31 +2563,122 @@ function renderSummary(schedule){
   ).join('');
 }
 
+/*
+  Grafiek "Opbouw per week": staven per week met schaallijnen, de huidige week gemarkeerd
+  (voorbije weken iets vager), en details van een week bij aantikken.
+*/
+let chartSelectedWeek = null;
+
+function currentWeekIndex(schedule){
+  const t = localIsoDate(new Date());
+  return schedule.weeks.findIndex(w => localIsoDate(w.days[0].date) <= t && t <= localIsoDate(w.days[6].date));
+}
+function niceStep(max){
+  const steps = [2, 5, 10, 20, 25, 50, 100];
+  return steps.find(st => max/st <= 4) || 100;
+}
+
 function renderChart(schedule){
   const host = document.getElementById('chartHost');
   const weeks = schedule.weeks;
   const max = Math.max(...weeks.map(w=>w.totalKm), 1);
   const barW = 34, gap = 10, chartH = 140;
-  const padTop = 18; // ruimte boven de hoogste staaf voor het getal (anders valt het buiten de grafiek)
-  const width = weeks.length*(barW+gap)+gap;
+  const padTop = 18;   // ruimte boven de hoogste staaf voor het getal
+  const padLeft = 30;  // ruimte voor de km-schaal
+  const bottom = 42;   // weeklabel + "nu"
+  const width = padLeft + weeks.length*(barW+gap) + gap;
+  const height = padTop + chartH + bottom;
+  const nowIdx = currentWeekIndex(schedule);
+
+  // schaallijnen
+  const step = niceStep(max);
+  let grid = `<text x="${padLeft-8}" y="${padTop-6}" text-anchor="end" font-size="9.5" fill="var(--muted)">km</text>`;
+  for(let v = step; v <= max + 0.001; v += step){
+    const y = padTop + chartH - (v/max)*chartH;
+    grid += `<line x1="${padLeft-4}" x2="${width}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="3 4"></line>
+      <text x="${padLeft-8}" y="${y+3}" text-anchor="end" font-size="9.5" fill="var(--muted)">${v}</text>`;
+  }
+  grid += `<line x1="${padLeft-4}" x2="${width}" y1="${padTop+chartH}" y2="${padTop+chartH}" stroke="var(--line)"></line>`;
 
   let bars = '';
   weeks.forEach((w,i) => {
     const h = Math.max(4, (w.totalKm/max)*chartH);
-    const x = gap + i*(barW+gap);
+    const x = padLeft + gap + i*(barW+gap);
     const y = padTop + chartH - h;
     const isRaceFinish = w.days.some(d=>d.type==='wedstrijd');
     const isGoalFinish = w.days.some(d=>d.type==='doel');
     const color = isRaceFinish ? 'var(--c-wedstrijd)' : isGoalFinish ? 'var(--c-doel)'
       : (w.isRecoveryWeek ? 'var(--c-herstel)' : (w.isTaperWeek ? 'var(--c-tempo)' : 'var(--c-lange)'));
-    bars += `<g>
-      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="${color}"></rect>
-      <text x="${x+barW/2}" y="${padTop+chartH+16}" text-anchor="middle" font-size="10" fill="var(--muted)">W${i+1}</text>
-      <text x="${x+barW/2}" y="${y-5}" text-anchor="middle" font-size="10" fill="var(--ink)">${Math.round(w.totalKm)}</text>
+    const past = nowIdx >= 0 && i < nowIdx;
+    const isNow = i === nowIdx;
+    bars += `<g class="bar${i===chartSelectedWeek ? ' selected' : ''}" data-week="${i}" tabindex="0" role="button"
+        aria-label="Week ${i+1}: ${Math.round(w.totalKm)} km${isNow ? ', huidige week' : ''}">
+      <rect x="${x-gap/2}" y="${padTop-14}" width="${barW+gap}" height="${chartH+14+bottom}" fill="transparent"></rect>
+      <rect class="fill" x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="${color}" opacity="${past ? 0.5 : 1}"></rect>
+      <text x="${x+barW/2}" y="${y-5}" text-anchor="middle" font-size="10" fill="var(--ink)"${isNow ? ' font-weight="700"' : ''}>${Math.round(w.totalKm)}</text>
+      <text x="${x+barW/2}" y="${padTop+chartH+16}" text-anchor="middle" font-size="10" fill="${isNow ? 'var(--ink)' : 'var(--muted)'}"${isNow ? ' font-weight="700"' : ''}>W${i+1}</text>
+      ${isNow ? `<text x="${x+barW/2}" y="${padTop+chartH+31}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--accent-gold)">NU</text>` : ''}
     </g>`;
   });
 
-  host.innerHTML = `<svg viewBox="0 0 ${width} ${padTop+chartH+30}" width="${width}" height="${padTop+chartH+30}" role="img" aria-label="Kilometers per week">${bars}</svg>`;
+  host.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="Kilometers per week">${grid}${bars}</svg>`;
+
+  host.querySelectorAll('.bar').forEach(g=>{
+    const pick = ()=> selectChartWeek(parseInt(g.dataset.week,10));
+    g.addEventListener('click', pick);
+    g.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); pick(); } });
+  });
+
+  // standaard de huidige week tonen en in beeld scrollen
+  if(chartSelectedWeek==null || chartSelectedWeek >= weeks.length) chartSelectedWeek = nowIdx >= 0 ? nowIdx : null;
+  if(chartSelectedWeek!=null){ markSelectedBar(); renderChartDetail(chartSelectedWeek); }
+  else document.getElementById('chartDetail').style.display = 'none';
+
+  requestAnimationFrame(()=>{
+    const hint = document.getElementById('chartHint');
+    const scrolls = host.scrollWidth > host.clientWidth + 2;
+    hint.textContent = scrolls ? 'Veeg opzij om alle weken te zien · tik op een week voor details' : 'Tik op een week voor details';
+    hint.style.display = 'block';
+    if(scrolls && nowIdx >= 0){
+      const x = padLeft + gap + nowIdx*(barW+gap);
+      host.scrollLeft = Math.max(0, x - host.clientWidth/2 + barW/2);
+    }
+  });
+}
+
+function markSelectedBar(){
+  document.querySelectorAll('#chartHost .bar').forEach(g=>
+    g.classList.toggle('selected', parseInt(g.dataset.week,10)===chartSelectedWeek));
+}
+function selectChartWeek(i){
+  chartSelectedWeek = i;
+  markSelectedBar();
+  renderChartDetail(i);
+}
+function renderChartDetail(i){
+  const host = document.getElementById('chartDetail');
+  if(!currentSchedule || !currentSchedule.weeks[i]){ host.style.display='none'; return; }
+  const w = currentSchedule.weeks[i];
+  const progress = loadProgress();
+  const trainings = w.days.filter(d=>d.type!=='rust');
+  const done = trainings.filter(d=>progress[d.id]).length;
+  const longest = trainings.reduce((m,d)=> d.km>m ? d.km : m, 0);
+  const race = w.days.find(d=>d.type==='wedstrijd' || d.type==='doel');
+  const tag = weekTag(currentSchedule, w).replace(' · ','').toLowerCase();
+  host.innerHTML = `<div>
+      <strong>Week ${i+1}</strong>${tag ? ' · '+tag : ''}${i===currentWeekIndex(currentSchedule) ? ' · deze week' : ''}<br>
+      ${fmtDate(w.days[0].date)} – ${fmtDate(w.days[6].date)} · <strong>${fmtKm(w.totalKm)}</strong> in ${trainings.length} trainingen
+      · langste ${fmtKm(longest)}${race ? ' · '+(race.type==='doel' ? 'doeldag' : 'wedstrijd')+' op '+fmtDate(race.date) : ''}
+      · ${done}/${trainings.length} gedaan
+    </div>
+    <button type="button" class="btn secondary small" id="chartGotoWeek">Toon in weekschema</button>`;
+  host.style.display = 'flex';
+  document.getElementById('chartGotoWeek').addEventListener('click', ()=>{
+    const tabBtn = document.querySelector('#resultsTabs .tab-btn[data-tab="tableTab"]');
+    if(tabBtn) tabBtn.click();
+    const block = document.getElementById('week-block-'+i);
+    if(block) block.scrollIntoView({ behavior:'smooth', block:'start' });
+  });
 }
 
 function renderLegend(schedule){
@@ -2305,16 +2711,20 @@ function typeChip(entry){
   return `<span class="type-chip" style="background:${CONFIG.typeColor[entry.type]}">${CONFIG.typeLabel[entry.type]}</span>`;
 }
 
+function weekTag(schedule, week){
+  return schedule.mode==='onderhoud'
+    ? (week.isRecoveryWeek ? ' · HERSTELD-WEEK' : '')
+    : (week.isLastWeek ? ' · WEDSTRIJDWEEK' : (week.isTaperWeek ? ' · AFBOUWWEEK' : ''));
+}
+
 function renderTable(schedule){
   const progress = loadProgress();
   let html = '';
 
   schedule.weeks.forEach((week, wi) => {
     const first = week.days[0].date, last = week.days[6].date;
-    const tag = schedule.mode==='onderhoud'
-      ? (week.isRecoveryWeek ? ' · HERSTELD-WEEK' : '')
-      : (week.isLastWeek ? ' · WEDSTRIJDWEEK' : (week.isTaperWeek ? ' · AFBOUWWEEK' : ''));
-    html += `<div class="week-block">
+    const tag = weekTag(schedule, week);
+    html += `<div class="week-block" id="week-block-${wi}">
       <div class="week-head">
         <span class="wk-title">Week ${wi+1}${tag}</span>
         <span class="wk-meta">${fmtDate(first)} — ${fmtDate(last)} · ${fmtKm(week.totalKm)}</span>
@@ -2327,7 +2737,7 @@ function renderTable(schedule){
       const isRest = entry.type==='rust';
       const detailId = entry.id+'-detail';
       const dayName = WEEKDAY_NAMES[dow].charAt(0).toUpperCase()+WEEKDAY_NAMES[dow].slice(1);
-      const dayDate = entry.date.toLocaleDateString('nl-NL',{day:'numeric',month:'short'});
+      const dayDate = entry.date.toLocaleDateString('nl-BE',{day:'numeric',month:'short'});
 
       html += `<div class="sched-row ${isRest?'rustdag':''} ${done?'row-done':''}" data-detail="${detailId}">
         <div class="sched-check">${isRest?'' : `<input type="checkbox" class="done-check" data-id="${entry.id}" ${done?'checked':''} aria-label="${dayName} afgevinkt">`}</div>
@@ -2364,6 +2774,8 @@ function renderTable(schedule){
       p[cb.dataset.id] = cb.checked;
       saveProgress(p);
       cb.closest('.sched-row').classList.toggle('row-done', cb.checked);
+      renderToday();
+      if(chartSelectedWeek!=null) renderChartDetail(chartSelectedWeek);
     });
     cb.addEventListener('click', (e)=> e.stopPropagation());
   });
@@ -2397,7 +2809,7 @@ function renderCalendar(schedule){
     return (ay-by) || (am-bm);
   }).forEach(key => {
     const [year, month] = key.split('-').map(Number);
-    const monthName = new Date(year,month,1).toLocaleDateString('nl-NL',{month:'long',year:'numeric'});
+    const monthName = new Date(year,month,1).toLocaleDateString('nl-BE',{month:'long',year:'numeric'});
     const firstOfMonth = new Date(year,month,1);
     const startOffset = (firstOfMonth.getDay()+6)%7; // maandag = 0
     const daysInMonth = new Date(year,month+1,0).getDate();
@@ -2501,18 +2913,30 @@ function addRaceRow(defaultPriority){
     <input type="date" class="rc-date" aria-label="Datum wedstrijd">
     <select class="rc-km" aria-label="Afstand">${distanceOptionsHtml(10)}</select>
     <input type="text" class="rc-name" placeholder="Naam (optioneel)" aria-label="Naam wedstrijd">
+    <input type="text" class="rc-time" placeholder="Streeftijd (optioneel)" aria-label="Streeftijd wedstrijd">
     <select class="rc-priority" aria-label="Doel">
       <option value="A"${defaultPriority==='A' ? ' selected' : ''}>A-doel</option>
       <option value="B"${defaultPriority==='B' ? ' selected' : ''}>B-doel</option>
     </select>
     <button type="button" class="btn secondary small rc-remove" aria-label="Verwijder wedstrijd">✕</button>
+    <div class="rc-advice" aria-live="polite"></div>
   `;
   document.getElementById('racesContainer').appendChild(row);
   row.querySelector('.rc-remove').addEventListener('click', ()=>{ row.remove(); onRacesChanged(); });
   row.querySelector('.rc-date').addEventListener('change', onRacesChanged);
   row.querySelector('.rc-km').addEventListener('change', onRacesChanged);
   row.querySelector('.rc-priority').addEventListener('change', onRacesChanged);
+  row.querySelector('.rc-time').addEventListener('input', updateRaceAdvice);
   return row;
+}
+
+// leest de (optionele) streeftijd van een wedstrijdrij; leeg = uitlopen
+function readRaceTime(str){
+  const txt = (str||'').trim();
+  if(!txt) return { targetMinutes:null };
+  const min = parseTimeToMinutes(txt);
+  if(!min || min<=0 || !/^\d+(:\d{1,2}){0,2}$/.test(txt)) return { targetMinutes:null, timeInvalid:txt };
+  return { targetMinutes:min };
 }
 
 function readRaces(){
@@ -2526,7 +2950,8 @@ function readRaces(){
       date: new Date(dateVal+'T00:00:00'),
       distanceKm: kmVal,
       name: row.querySelector('.rc-name').value.trim(),
-      priority: row.querySelector('.rc-priority').value
+      priority: row.querySelector('.rc-priority').value,
+      ...readRaceTime(row.querySelector('.rc-time').value)
     });
   });
   return races;
@@ -2544,6 +2969,7 @@ function getPrimaryRace(races){
 function onRacesChanged(){
   syncLongRunDayToPrimaryRace();
   updateWeeksControlsForRace();
+  updateRaceAdvice();
 }
 
 document.getElementById('addRaceBtn').addEventListener('click', ()=>{ addRaceRow('B'); onRacesChanged(); });
@@ -2553,6 +2979,7 @@ document.querySelectorAll('input[name=raceMode]').forEach(r=>{
     const mode = document.querySelector('input[name=raceMode]:checked').value;
     document.getElementById('raceFields').style.display = mode==='wedstrijd' ? '' : 'none';
     document.getElementById('freeGoalField').style.display = mode==='wedstrijd' ? 'none' : '';
+    syncGoalTypeFields();
     onRacesChanged();
   });
 });
@@ -2618,12 +3045,30 @@ document.getElementById('startDate').addEventListener('change', updateWeeksContr
 /* ================================================================
    EXPORTEREN: CSV & ICS
    ================================================================ */
-function download(filename, content, mime){
-  const blob = new Blob([content], {type:mime});
+/*
+  Bestand bewaren. Op een gsm (zeker een geïnstalleerde app op iPhone) werkt een gewone
+  download vaak niet of slecht; daar gebruiken we het deelmenu (opslaan in Bestanden,
+  openen in Agenda, …). Lukt dat niet, dan valt het terug op een gewone download.
+*/
+async function download(filename, content, mime){
+  const blob = content instanceof Blob ? content : new Blob([content], {type:mime});
+  const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if(touch && navigator.canShare && window.File){
+    try{
+      const file = new File([blob], filename, { type: mime || blob.type });
+      if(navigator.canShare({ files:[file] })){
+        await navigator.share({ files:[file], title: filename });
+        return;
+      }
+    } catch(err){
+      if(err && err.name === 'AbortError') return; // gebruiker sloot het deelmenu
+    }
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(a.href), 10000);
 }
 
 function exportCsv(){
@@ -2631,7 +3076,7 @@ function exportCsv(){
   currentSchedule.weeks.forEach((w,wi)=>{
     DISPLAY_ORDER.forEach(dow=>{
       const e = w.days.find(d=>d.date.getDay()===dow);
-      rows.push([wi+1, WEEKDAY_NAMES[dow], isoDate(e.date), CONFIG.typeLabel[e.type],
+      rows.push([wi+1, WEEKDAY_NAMES[dow], localIsoDate(e.date), CONFIG.typeLabel[e.type],
                  e.type==='rust' ? '' : e.km,
                  e.pace ? paceMinPerKmToStr(e.pace) : '',
                  e.hr ? (e.hr.low+'-'+e.hr.high) : '',
@@ -2642,26 +3087,66 @@ function exportCsv(){
   download('antluupen.csv', csv, 'text/csv;charset=utf-8');
 }
 
+/*
+  Agenda-export (.ics). Volgt de iCalendar-norm (RFC 5545): tekst ge-escaped, lange regels
+  geplooid op 75 bytes, DTSTAMP en DTEND aanwezig. Optioneel een herinnering (instelling).
+*/
+function icsEscape(t){
+  return String(t).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+}
+function icsFold(line){
+  const enc = new TextEncoder();
+  if(enc.encode(line).length <= 75) return line;
+  const out = []; let cur = ''; let bytes = 0;
+  for(const ch of line){
+    const b = enc.encode(ch).length;
+    if(bytes + b > 75){ out.push(cur); cur = ' ' + ch; bytes = 1 + b; }
+    else { cur += ch; bytes += b; }
+  }
+  out.push(cur);
+  return out.join('\r\n');
+}
+function entryLabel(e){
+  if(e.type==='wedstrijd') return e.priority==='B' ? 'Wedstrijd (B-doel)' : 'Wedstrijd (A-doel)';
+  return CONFIG.typeLabel[e.type];
+}
+
 function exportIcs(){
+  if(!currentSchedule) return;
   const pad = n => String(n).padStart(2,'0');
-  let lines = ['BEGIN:VCALENDAR','VERSION:2.0',"PRODID:-//An't Luupen//NL"];
+  const ymd = d => d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+  const now = new Date();
+  const stamp = now.getUTCFullYear()+pad(now.getUTCMonth()+1)+pad(now.getUTCDate())+'T'+
+                pad(now.getUTCHours())+pad(now.getUTCMinutes())+pad(now.getUTCSeconds())+'Z';
+  const reminder = loadAppSettings().icsReminder;
+
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0',"PRODID:-//An't Luupen//NL",'CALSCALE:GREGORIAN',
+                 'METHOD:PUBLISH',"X-WR-CALNAME:An't Luupen"];
   currentSchedule.weeks.forEach(w=>{
     w.days.forEach(e=>{
       if(e.type==='rust') return;
-      const d = e.date;
-      const dateStr = d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
-      let desc = (e.note||'') + (e.type!=='rust' ? ` (${fmtKm(e.km)})` : '');
-      if(e.hr) desc += ` — hartslagzone ${e.hr.low}-${e.hr.high} bpm`;
+      const next = new Date(e.date); next.setDate(next.getDate()+1);
+      let desc = e.note || '';
+      if(e.pace) desc += `\nTempo: ${paceMinPerKmToStr(e.pace)}`;
+      if(e.hr) desc += `\nHartslagzone: ${e.hr.low}-${e.hr.high} bpm`;
+      const title = `${entryLabel(e)} — ${fmtKm(e.km)}`;
       lines.push('BEGIN:VEVENT');
-      lines.push('UID:'+e.id+'@antluupen');
-      lines.push('DTSTART;VALUE=DATE:'+dateStr);
-      lines.push('SUMMARY:'+CONFIG.typeLabel[e.type]+(e.type!=='rust' ? ' — '+fmtKm(e.km) : ''));
-      lines.push('DESCRIPTION:'+desc.replace(/\n/g,' '));
+      lines.push(`UID:${localIsoDate(e.date)}-${e.id}@antluupen`);
+      lines.push('DTSTAMP:'+stamp);
+      lines.push('DTSTART;VALUE=DATE:'+ymd(e.date));
+      lines.push('DTEND;VALUE=DATE:'+ymd(next));
+      lines.push('SUMMARY:'+icsEscape(title));
+      lines.push('DESCRIPTION:'+icsEscape(desc));
+      lines.push('TRANSP:TRANSPARENT');
+      if(reminder==='evening' || reminder==='morning'){
+        lines.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEscape(title),
+                   'TRIGGER:'+(reminder==='evening' ? '-PT4H' : 'PT7H'), 'END:VALARM');
+      }
       lines.push('END:VEVENT');
     });
   });
   lines.push('END:VCALENDAR');
-  download('antluupen.ics', lines.join('\r\n'), 'text/calendar;charset=utf-8');
+  download('antluupen-schema.ics', lines.map(icsFold).join('\r\n') + '\r\n', 'text/calendar;charset=utf-8');
 }
 
 /* ================================================================
@@ -2902,21 +3387,36 @@ function setupTabGroup(containerId){
 setupTabGroup('formTabs');
 setupTabGroup('resultsTabs');
 
+function showAppView(viewId){
+  document.querySelectorAll('.app-view').forEach(v=>v.classList.toggle('active', v.id===viewId));
+  document.querySelectorAll('.app-tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.app===viewId));
+  const gear = document.getElementById('settingsBtn');
+  gear.classList.toggle('active', viewId==='settingsView');
+  gear.setAttribute('aria-pressed', String(viewId==='settingsView'));
+}
+let lastMainView = 'schemaView';
 document.querySelectorAll('.app-tab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.app-tab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.app-view').forEach(v=>v.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.app).classList.add('active');
-  });
+  btn.addEventListener('click', ()=>{ lastMainView = btn.dataset.app; showAppView(btn.dataset.app); });
+});
+// tandwiel: opent de instellingen, nog eens tikken brengt je terug waar je was
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  const open = document.getElementById('settingsView').classList.contains('active');
+  showAppView(open ? lastMainView : 'settingsView');
+  if(!open) window.scrollTo({ top:0, behavior:'smooth' });
 });
 
+// Met wedstrijden staat de streeftijd per wedstrijd in de rij zelf; het algemene
+// "Wat is je doel?"-veld is dan alleen nodig zonder wedstrijd.
+function syncGoalTypeFields(){
+  const mode = document.querySelector('input[name=raceMode]:checked').value;
+  const tijd = document.querySelector('input[name=goalType]:checked').value==='tijd';
+  document.getElementById('goalTypeField').style.display = mode==='wedstrijd' ? 'none' : '';
+  document.getElementById('targetTimeField').style.display = (mode!=='wedstrijd' && tijd) ? 'block' : 'none';
+}
 document.querySelectorAll('input[name=goalType]').forEach(r=>{
-  r.addEventListener('change', ()=>{
-    document.getElementById('targetTimeField').style.display =
-      document.querySelector('input[name=goalType]:checked').value==='tijd' ? 'block' : 'none';
-  });
+  r.addEventListener('change', syncGoalTypeFields);
 });
+syncGoalTypeFields();
 
 document.getElementById('autoWeeks').addEventListener('change', (e)=>{
   document.getElementById('manualWeeksField').style.display = e.target.checked ? 'none' : 'block';
@@ -2950,7 +3450,9 @@ document.getElementById('resetProgressBtn').addEventListener('click', ()=>{
 document.getElementById('newScheduleBtn').addEventListener('click', ()=>{
   if(!confirm('Je opgeslagen schema wordt verwijderd (je voortgang blijft bewaard, mocht je later hetzelfde schema opnieuw genereren). Doorgaan?')) return;
   localStorage.removeItem('loopschema_actief');
-  currentSchedule = null; scheduleKey = null;
+  currentSchedule = null; scheduleKey = null; chartSelectedWeek = null;
+  renderToday();
+  updateFormCollapse();
   document.getElementById('results').style.display = 'none';
   document.getElementById('emptyState').style.display = 'block';
   const banner = document.getElementById('restoreBanner');
@@ -3012,8 +3514,18 @@ document.getElementById('schemaForm').addEventListener('submit', function(e){
   const raceName = raceMode==='wedstrijd' ? primary.name : '';
   const extraRaces = raceMode==='wedstrijd' ? races.filter(r=> r!==primary) : [];
 
-  const goalType = document.querySelector('input[name=goalType]:checked').value;
-  const targetMinutes = goalType==='tijd' ? parseTimeToMinutes(document.getElementById('targetTime').value) : null;
+  const badTime = races.find(r => r.timeInvalid);
+  if(badTime){
+    alert(`De streeftijd "${badTime.timeInvalid}" is ongeldig. Gebruik bijvoorbeeld 55:00 of 1:45:00, of laat het veld leeg om uit te lopen.`);
+    return;
+  }
+  // met wedstrijd: het tijdsdoel komt van het hoofddoel zelf; zonder wedstrijd: het algemene veld
+  const goalType = raceMode==='wedstrijd'
+    ? (primary.targetMinutes ? 'tijd' : 'uitlopen')
+    : document.querySelector('input[name=goalType]:checked').value;
+  const targetMinutes = raceMode==='wedstrijd'
+    ? (primary.targetMinutes || null)
+    : (goalType==='tijd' ? parseTimeToMinutes(document.getElementById('targetTime').value) : null);
   const autoWeeks = document.getElementById('autoWeeks').checked;
   const manualWeeks = parseInt(document.getElementById('manualWeeks').value, 10);
 
@@ -3060,10 +3572,11 @@ const COMPASS_DIRECTIONS = [
 ];
 
 let routeOrigin = null;   // { lat, lon, label }
-let routeBearing = 0;     // huidige gekozen kompasrichting (graden)
+let routeBearing = null;  // vertrekrichting van de laatste route (graden), telkens willekeurig gekozen
 
 function renderDirectionPicker(){
   const host = document.getElementById('routeDirectionPicker');
+  if(!host) return; // richting wordt nu willekeurig gekozen
   host.innerHTML = COMPASS_DIRECTIONS.map(d =>
     `<button type="button" class="dir-toggle ${d.deg===routeBearing?'active':''}" data-deg="${d.deg}" title="${d.full}">${d.label}</button>`
   ).join('');
@@ -3109,8 +3622,19 @@ function mapsLoopUrl(origin, waypoints){
   return `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${o}&waypoints=${encodeURIComponent(wp)}&travelmode=walking`;
 }
 function dirFullLabel(deg){
-  const d = COMPASS_DIRECTIONS.find(x=>x.deg===((deg%360)+360)%360);
-  return d ? d.full.toLowerCase() : 'gekozen punt';
+  const norm = ((deg % 360) + 360) % 360;
+  const d = COMPASS_DIRECTIONS[Math.round(norm / 45) % 8];
+  return d.full.toLowerCase();
+}
+// willekeurige vertrekrichting; met 'avoidDeg' minstens 60° verschillend van de vorige route
+function randomBearing(avoidDeg){
+  for(let i = 0; i < 20; i++){
+    const b = Math.floor(Math.random() * 360);
+    if(avoidDeg == null) return b;
+    const diff = Math.abs(((b - avoidDeg + 540) % 360) - 180);
+    if(diff >= 60) return b;
+  }
+  return (avoidDeg + 180) % 360;
 }
 
 /*
@@ -3174,12 +3698,20 @@ let routeServerUsed = 'foot'; // voor de melding in de UI
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function osrmRouteDistanceKm(points){
+  return (await osrmRoute(points, false)).distKm;
+}
+// tracé voor de kaart en het GPX-bestand: lijst van [lat, lon]
+async function osrmRouteGeometry(points){
+  return osrmRoute(points, true);
+}
+async function osrmRoute(points, withGeometry){
   const coordStr = points.map(p => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
+  const query = withGeometry ? '?overview=full&geometries=geojson' : '?overview=false';
   let lastErr = null;
   for(let i = routeServerIdx; i < ROUTE_SERVERS.length; i++){
     for(let attempt = 0; attempt < 2; attempt++){
       try{
-        const res = await fetch(`${ROUTE_SERVERS[i].base}${coordStr}?overview=false`);
+        const res = await fetch(`${ROUTE_SERVERS[i].base}${coordStr}${query}`);
         if(res.status === 429){ await sleep(1200); continue; } // even te veel vragen: kort wachten
         if(!res.ok) throw new Error('Routeservice reageerde niet (' + res.status + ').');
         const data = await res.json();
@@ -3190,7 +3722,12 @@ async function osrmRouteDistanceKm(points){
         }
         routeServerIdx = i;
         routeServerUsed = ROUTE_SERVERS[i].id;
-        return data.routes[0].distance / 1000;
+        const route = data.routes[0];
+        return {
+          distKm: route.distance / 1000,
+          coords: (withGeometry && route.geometry && route.geometry.coordinates)
+            ? route.geometry.coordinates.map(([lon, lat]) => [lat, lon]) : null
+        };
       } catch(e){
         if(e.noRoute) throw e;
         lastErr = e;
@@ -3311,18 +3848,42 @@ function diffSentence(diffKm, km){
 
 let routeRunId = 0; // voorkomt dat een oudere, tragere berekening een nieuwere overschrijft
 
+let lastRouteGpx = null;
+
 async function renderRouteResult(origin, km, shape, bearingDeg){
+  try{
+    await renderRouteResultInner(origin, km, shape, bearingDeg);
+  } catch(err){
+    console.error(err);
+    document.getElementById('routeNote').textContent = 'Er ging iets mis bij het berekenen van de route. Probeer het opnieuw.';
+    const genBtn = document.getElementById('generateRouteBtn');
+    genBtn.disabled = false; genBtn.textContent = 'Genereer route';
+  }
+}
+
+async function renderRouteResultInner(origin, km, shape, bearingDeg){
   const runId = ++routeRunId;
   document.getElementById('routeEmptyState').style.display = 'none';
   document.getElementById('routeResults').style.display = 'block';
   const statusEl = document.getElementById('routeGeoStatus');
-  const status = msg => { if(runId === routeRunId) statusEl.textContent = msg; };
+  statusEl.textContent = '';
+  const noteEl = document.getElementById('routeNote');
+  noteEl.innerHTML = `<div class="route-loading"><span class="spinner" aria-hidden="true"></span><span id="routeLoadingText">Route wordt berekend…</span></div>`;
+  const status = msg => {
+    if(runId !== routeRunId) return;
+    const t = document.getElementById('routeLoadingText');
+    if(t) t.textContent = msg;
+  };
+  const genBtn = document.getElementById('generateRouteBtn');
+  genBtn.disabled = true; genBtn.textContent = 'Bezig met berekenen…';
+  if(window.innerWidth <= 960) document.getElementById('routeResults').scrollIntoView({ behavior:'smooth', block:'start' });
 
   document.getElementById('routeBibLabel').textContent = 'LOOPKOMPAS';
   document.getElementById('routeBibNumber').textContent = '…';
-  document.getElementById('routeNote').textContent = 'Route wordt berekend en afgestemd op de gekozen afstand…';
   document.getElementById('routeLinkButtons').innerHTML = '';
   document.getElementById('routeDirQuick').innerHTML = '';
+  document.getElementById('routeMap').style.display = 'none';
+  lastRouteGpx = null;
 
   const tol = routeToleranceKm(km);
 
@@ -3337,36 +3898,37 @@ async function renderRouteResult(origin, km, shape, bearingDeg){
   catch(e){ knoop = { found:false, reason:'De knooppuntendienst is niet bereikbaar (' + e.message + ').' }; }
 
   if(runId !== routeRunId) return; // er is intussen een nieuwe berekening gestart
-  statusEl.textContent = '';
 
   // 3) kiezen: knooppunten als die goed genoeg zijn, anders de afgestemde kompasroute
   const useKnoop = knoop.found && (!calib || knoop.diffKm <= tol || knoop.diffKm <= calib.diffKm);
 
-  let mapsUrl, noteText, subLine, bibText;
+  let mapsUrl, noteText, subLine, bibText, chosenWps = null, knoopMarkers = [];
   const vorm = shape === 'lus' ? 'Lus' : 'Heen-en-terug';
   if(useKnoop){
+    chosenWps = knoop.waypoints; knoopMarkers = knoop.waypoints;
     mapsUrl = mapsLoopUrl(origin, knoop.waypoints);
     bibText = fmtKm(knoop.distKm);
     const refs = knoop.waypoints.map(w => `${w.ref} (${w.soort})`).join(' → ');
     noteText = shape === 'heenterug'
       ? `Loop via knooppunt ${refs} en dezelfde weg terug. Gemeten afstand over de paden: ${fmtKm(knoop.distKm)}, ${diffSentence(knoop.diffKm, km)}.`
       : `Een lus via de knooppunten ${refs} en terug naar je startpunt. Gemeten afstand over de paden: ${fmtKm(knoop.distKm)}, ${diffSentence(knoop.diffKm, km)}.`;
-    subLine = `<span>${vorm}</span><span>via knooppunten</span><span>Vanaf ${origin.label}</span>`;
+    subLine = `<span>${vorm}</span><span>via knooppunten</span><span>richting ${dirFullLabel(bearingDeg)}</span><span>Vanaf ${origin.label}</span>`;
   } else if(calib){
+    chosenWps = calib.waypoints;
     mapsUrl = mapsLoopUrl(origin, calib.waypoints);
     bibText = fmtKm(calib.distKm);
     const why = knoop.found
       ? 'De knooppunten in deze richting liggen te ongunstig voor je afstand, daarom een route op kompasrichting.'
       : knoop.reason + ' Daarom een route op kompasrichting.';
     noteText = `${why} Afgestemd op echte paden: ${fmtKm(calib.distKm)}, ${diffSentence(calib.diffKm, km)}.`;
-    subLine = `<span>${vorm}</span><span>${dirFullLabel(bearingDeg)}</span><span>Vanaf ${origin.label}</span>`;
+    subLine = `<span>${vorm}</span><span>richting ${dirFullLabel(bearingDeg)}</span><span>Vanaf ${origin.label}</span>`;
   } else {
     // geen enkele routeservice bereikbaar: ruwe schatting met 30 % omweg
     const wps = geoWaypoints(origin, shape, bearingDeg, km / GEO_DIVISOR[shape] / 1.3);
     mapsUrl = mapsLoopUrl(origin, wps);
     bibText = '± ' + fmtKm(km);
     noteText = `De routeservice is niet bereikbaar${calibError ? ' (' + calibError.message + ')' : ''}. Hieronder een geschatte route op kompasrichting — controleer de afstand zelf in Google Maps.`;
-    subLine = `<span>${vorm}</span><span>${dirFullLabel(bearingDeg)} (geschat)</span><span>Vanaf ${origin.label}</span>`;
+    subLine = `<span>${vorm}</span><span>richting ${dirFullLabel(bearingDeg)} (geschat)</span><span>Vanaf ${origin.label}</span>`;
   }
 
   if(routeServerUsed === 'car' && (useKnoop || calib)){
@@ -3374,23 +3936,105 @@ async function renderRouteResult(origin, km, shape, bearingDeg){
   }
   noteText += ' Google Maps kiest zelf de exacte paden tussen de punten, dus de afstand daar kan nog licht verschillen.';
 
+  // tracé ophalen voor kaart en GPX (alleen als er een routeservice bereikbaar was)
+  let geometry = null;
+  if(chosenWps){
+    status('Kaart en tracé ophalen…');
+    try{ geometry = await osrmRouteGeometry([origin, ...chosenWps, origin]); } catch(e){ geometry = null; }
+    if(runId !== routeRunId) return;
+  }
+
+  genBtn.disabled = false; genBtn.textContent = 'Genereer route';
   document.getElementById('routeBibNumber').textContent = bibText.toUpperCase();
   document.getElementById('routeBibSub').innerHTML = subLine;
-  document.getElementById('routeNote').textContent = noteText;
+  noteEl.textContent = noteText;
   document.getElementById('routeLinkButtons').innerHTML =
-    `<a class="btn secondary" href="${mapsUrl}" target="_blank" rel="noopener">Open route in Google Maps</a>`;
+    `<a class="btn secondary" href="${mapsUrl}" target="_blank" rel="noopener">Open route in Google Maps</a>` +
+    (geometry && geometry.coords ? `<button type="button" class="btn secondary" id="routeGpxBtn">Download GPX (horloge)</button>` : '');
+
+  if(geometry && geometry.coords){
+    const km = Math.round(geometry.distKm*10)/10;
+    lastRouteGpx = { coords: geometry.coords, name: `Loopkompas ${String(km).replace('.',',')} km — ${dirFullLabel(bearingDeg)}` };
+    document.getElementById('routeGpxBtn').addEventListener('click', ()=>{
+      download(`loopkompas-${String(km).replace('.',',')}km.gpx`, buildGpx(lastRouteGpx.coords, lastRouteGpx.name), 'application/gpx+xml');
+    });
+    showRouteOnMap(origin, geometry.coords, knoopMarkers);
+  }
 
   const quick = document.getElementById('routeDirQuick');
-  quick.innerHTML = COMPASS_DIRECTIONS.filter(d=>d.deg!==bearingDeg).map(d=>
-    `<button type="button" data-deg="${d.deg}">${d.full}</button>`
-  ).join('');
-  quick.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      routeBearing = parseInt(btn.dataset.deg, 10);
-      renderDirectionPicker();
-      renderRouteResult(routeOrigin, parseFloat(document.getElementById('routeKm').value) || km, shape, routeBearing);
-    });
+  quick.innerHTML = `<button type="button" id="routeAgainBtn">↻ Andere route (nieuwe willekeurige richting)</button>`;
+  document.getElementById('routeAgainBtn').addEventListener('click', ()=>{
+    routeBearing = randomBearing(bearingDeg);
+    renderRouteResult(routeOrigin, parseFloat(document.getElementById('routeKm').value) || km, shape, routeBearing);
   });
+}
+
+/* ---- kaart (Leaflet, pas geladen wanneer nodig) ---- */
+let leafletPromise = null;
+function loadLeaflet(){
+  if(window.L) return Promise.resolve(window.L);
+  if(leafletPromise) return leafletPromise;
+  leafletPromise = new Promise((resolve, reject)=>{
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
+    js.onload = ()=> window.L ? resolve(window.L) : reject(new Error('Leaflet niet geladen'));
+    js.onerror = ()=>{ leafletPromise = null; reject(new Error('Kaartbibliotheek niet bereikbaar')); };
+    document.head.appendChild(js);
+  });
+  return leafletPromise;
+}
+let routeMapObj = null, routeMapLayer = null;
+async function showRouteOnMap(origin, coords, knoopMarkers){
+  const el = document.getElementById('routeMap');
+  let L;
+  try{ L = await loadLeaflet(); } catch(e){ el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  if(!routeMapObj){
+    routeMapObj = L.map(el, { zoomControl:true, attributionControl:true });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-bijdragers'
+    }).addTo(routeMapObj);
+    routeMapObj.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+  }
+  routeMapObj.invalidateSize();
+  if(routeMapLayer) routeMapLayer.remove();
+  routeMapLayer = L.layerGroup().addTo(routeMapObj);
+  L.polyline(coords, { color:'#FFFFFF', weight:8, opacity:0.9 }).addTo(routeMapLayer);
+  const line = L.polyline(coords, { color:'#5B3FD0', weight:5, opacity:0.95 }).addTo(routeMapLayer);
+  L.marker([origin.lat, origin.lon], {
+    icon: L.divIcon({ className:'', html:'<div class="start-marker"></div>', iconSize:[20,20], iconAnchor:[10,10] }),
+    title: 'Start en aankomst'
+  }).addTo(routeMapLayer);
+  knoopMarkers.forEach(k=>{
+    L.marker([k.lat, k.lon], {
+      icon: L.divIcon({ className:'', html:`<div class="knoop-marker">${escapeHtml(k.ref)}</div>`, iconSize:[28,28], iconAnchor:[14,14] }),
+      title: `Knooppunt ${k.ref}`
+    }).addTo(routeMapLayer);
+  });
+  routeMapObj.fitBounds(line.getBounds(), { padding:[24,24] });
+}
+
+/* ---- GPX-bestand (voor Garmin en andere horloges/apps) ---- */
+function buildGpx(coords, name){
+  const n = escapeHtml(name);
+  const pts = coords.map(([lat, lon]) => `      <trkpt lat="${lat.toFixed(6)}" lon="${lon.toFixed(6)}"></trkpt>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="An't Luupen" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>${n}</name><time>${new Date().toISOString()}</time></metadata>
+  <trk>
+    <name>${n}</name>
+    <type>running</type>
+    <trkseg>
+${pts}
+    </trkseg>
+  </trk>
+</gpx>
+`;
 }
 
 async function handleGenerateRoute(){
@@ -3420,6 +4064,7 @@ async function handleGenerateRoute(){
     }
   }
   statusEl.textContent = '';
+  routeBearing = randomBearing(routeBearing);
   renderRouteResult(routeOrigin, km, shape, routeBearing);
 }
 
@@ -3450,10 +4095,357 @@ document.getElementById('routeStart').addEventListener('input', ()=>{
 });
 
 // initialisatie
+/* ================================================================
+   TRAINING VAN VANDAAG
+   ================================================================ */
+function renderToday(){
+  const host = document.getElementById('todayCard');
+  if(!currentSchedule){ host.style.display = 'none'; host.innerHTML = ''; return; }
+  const all = currentSchedule.weeks.flatMap(w => w.days);
+  const today = localIsoDate(new Date());
+  const progress = loadProgress();
+  const first = all[0], last = all[all.length-1];
+  const entry = all.find(d => localIsoDate(d.date) === today);
+  const next = all.find(d => localIsoDate(d.date) > today && d.type !== 'rust');
+  const nextHtml = next
+    ? `<div class="today-next">Volgende training: <strong>${fmtDateLong(next.date)}</strong> — ${entryLabel(next)}, ${fmtKm(next.km)}</div>`
+    : '';
+
+  // voortgang van de huidige week
+  const wk = currentSchedule.weeks.find(w => localIsoDate(w.days[0].date) <= today && today <= localIsoDate(w.days[6].date));
+  let weekHtml = '';
+  if(wk){
+    const tr = wk.days.filter(d => d.type !== 'rust');
+    const doneTr = tr.filter(d => progress[d.id]);
+    const kmDone = doneTr.reduce((s,d)=> s + d.km, 0);
+    const pct = wk.totalKm ? Math.min(100, Math.round(kmDone / wk.totalKm * 100)) : 0;
+    weekHtml = `<div class="today-week">Deze week: ${doneTr.length} van ${tr.length} trainingen · ${fmtKm(kmDone)} van ${fmtKm(wk.totalKm)}</div>
+      <div class="progress-bar" aria-hidden="true"><span style="width:${pct}%"></span></div>`;
+  }
+
+  let html;
+  if(today < localIsoDate(first.date)){
+    const firstTraining = all.find(d => d.type !== 'rust');
+    html = `<div class="today-top"><span class="today-label">Binnenkort</span></div>
+      <div class="today-main"><span class="today-km" style="font-size:22px;">Je schema start ${fmtDateLong(first.date).toLowerCase()}</span></div>
+      ${firstTraining ? `<div class="today-note">Eerste training: ${fmtDateLong(firstTraining.date)} — ${entryLabel(firstTraining)}, ${fmtKm(firstTraining.km)}.</div>` : ''}`;
+  } else if(today > localIsoDate(last.date)){
+    const tr = all.filter(d => d.type !== 'rust');
+    const doneTr = tr.filter(d => progress[d.id]);
+    const kmDone = doneTr.reduce((s,d)=> s + d.km, 0);
+    html = `<div class="today-top"><span class="today-label">Schema afgerond</span></div>
+      <div class="today-main"><span class="today-km" style="font-size:22px;">Proficiat! 🎉</span></div>
+      <div class="today-note">Je vinkte ${doneTr.length} van de ${tr.length} trainingen af, samen ${fmtKm(kmDone)}.
+        Maak een nieuw schema via “Schema aanpassen” of kies “Conditie onderhouden” om fit te blijven.</div>`;
+  } else if(!entry || entry.type === 'rust'){
+    html = `<div class="today-top"><span class="today-label">Vandaag</span><span class="today-date">${fmtDateLong(new Date())}</span></div>
+      <div class="today-main"><span class="today-km">Rustdag</span></div>
+      <div class="today-note">Herstel hoort bij de training: je lichaam wordt sterker tijdens de rust. Wandelen of rustig fietsen mag.</div>
+      ${weekHtml}${nextHtml}`;
+  } else {
+    const done = !!progress[entry.id];
+    const tempo = entry.pace ? paceMinPerKmToStr(entry.pace) : CONFIG.effortLabel[entry.type];
+    html = `<div class="today-top"><span class="today-label">Vandaag</span><span class="today-date">${fmtDateLong(entry.date)}</span></div>
+      <div class="today-main"><span class="today-km">${fmtKm(entry.km)}</span>${typeChip(entry)}</div>
+      <div class="today-facts">
+        <span><strong>Tempo:</strong> ${tempo}</span>
+        ${entry.hr ? `<span><strong>Hartslag:</strong> ${entry.hr.low}–${entry.hr.high} bpm</span>` : ''}
+      </div>
+      <div class="today-note">${entry.note || ''}</div>
+      <div class="today-actions">
+        <button type="button" class="btn ${done ? 'is-done' : ''}" id="todayDoneBtn" data-id="${entry.id}" aria-pressed="${done}">
+          ${done ? '✓ Gedaan' : 'Markeer als gedaan'}</button>
+      </div>
+      <div style="margin-top:14px;">${weekHtml}</div>${nextHtml}`;
+  }
+  host.innerHTML = html;
+  host.style.display = 'block';
+
+  const btn = document.getElementById('todayDoneBtn');
+  if(btn) btn.addEventListener('click', ()=>{
+    const p = loadProgress();
+    p[btn.dataset.id] = !p[btn.dataset.id];
+    saveProgress(p);
+    renderTable(currentSchedule);
+    renderToday();
+    if(chartSelectedWeek!=null) renderChartDetail(chartSelectedWeek);
+  });
+}
+
+/* ---- formulier inklappen op gsm zodra er een schema is ---- */
+function updateFormCollapse(){
+  const layout = document.querySelector('#schemaView .layout');
+  layout.classList.toggle('has-schedule', !!currentSchedule);
+  if(!currentSchedule) layout.classList.remove('form-open');
+  const open = layout.classList.contains('form-open');
+  const btn = document.getElementById('formToggleBtn');
+  btn.textContent = open ? 'Formulier verbergen ▴' : 'Schema aanpassen ▾';
+  btn.setAttribute('aria-expanded', String(open));
+}
+document.getElementById('formToggleBtn').addEventListener('click', ()=>{
+  document.querySelector('#schemaView .layout').classList.toggle('form-open');
+  updateFormCollapse();
+});
+
+/* ================================================================
+   INSTELLINGEN: thema, agenda-herinnering
+   ================================================================ */
+const SETTINGS_KEY = 'antluupen_instellingen';
+const SETTINGS_DEFAULTS = { theme:'auto', icsReminder:'evening' };
+function loadAppSettings(){
+  try{ return { ...SETTINGS_DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
+  catch(e){ return { ...SETTINGS_DEFAULTS }; }
+}
+function saveAppSettings(patch){
+  const next = { ...loadAppSettings(), ...patch };
+  try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch(e){}
+  return next;
+}
+const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+function applyTheme(theme){
+  const root = document.documentElement;
+  if(theme==='light' || theme==='dark') root.setAttribute('data-theme', theme);
+  else root.removeAttribute('data-theme');
+  const dark = theme==='dark' || (theme!=='light' && darkQuery && darkQuery.matches);
+  const meta = document.querySelector('meta[name=theme-color]');
+  if(meta) meta.setAttribute('content', dark ? '#221258' : '#2A1470');
+}
+if(darkQuery && darkQuery.addEventListener){
+  darkQuery.addEventListener('change', ()=> applyTheme(loadAppSettings().theme));
+}
+(function initSettingsUI(){
+  const st = loadAppSettings();
+  applyTheme(st.theme);
+  const themeRadio = document.querySelector(`input[name=themeChoice][value="${st.theme}"]`);
+  if(themeRadio) themeRadio.checked = true;
+  const remRadio = document.querySelector(`input[name=icsReminder][value="${st.icsReminder}"]`);
+  if(remRadio) remRadio.checked = true;
+  document.querySelectorAll('input[name=themeChoice]').forEach(r=> r.addEventListener('change', ()=>{
+    applyTheme(saveAppSettings({ theme: r.value }).theme);
+  }));
+  document.querySelectorAll('input[name=icsReminder]').forEach(r=> r.addEventListener('change', ()=>{
+    saveAppSettings({ icsReminder: r.value });
+  }));
+  document.getElementById('aboutVersion').textContent = 'Versie ' + APP_VERSION;
+  document.getElementById('footerVersion').textContent = "An't Luupen · versie " + APP_VERSION;
+})();
+
+/* ================================================================
+   BACK-UP: alle gegevens van de app in één bestand
+   ================================================================ */
+const BACKUP_PREFIXES = ['loopschema_', 'antluupen_'];
+function isAppKey(k){ return BACKUP_PREFIXES.some(p => k.startsWith(p)); }
+
+document.getElementById('backupExportBtn').addEventListener('click', async ()=>{
+  const status = document.getElementById('backupStatus');
+  const data = {};
+  try{
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(isAppKey(k)) data[k] = localStorage.getItem(k);
+    }
+  } catch(e){ status.textContent = 'Kon de opslag van de browser niet lezen.'; return; }
+  if(!Object.keys(data).length){ status.textContent = 'Er is nog niets om te bewaren — maak eerst een schema.'; return; }
+  const payload = { app:"An't Luupen", type:'backup', format:1, appVersion:APP_VERSION,
+                    createdAt:new Date().toISOString(), data };
+  await download(`antluupen-backup-${localIsoDate(new Date())}.json`, JSON.stringify(payload), 'application/json');
+  status.textContent = 'Back-up gemaakt. Bewaar het bestand op een veilige plek (bv. in Bestanden of je cloud).';
+});
+
+document.getElementById('backupImportBtn').addEventListener('click', ()=>{
+  document.getElementById('backupFileInput').click();
+});
+document.getElementById('backupFileInput').addEventListener('change', async (ev)=>{
+  const status = document.getElementById('backupStatus');
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if(!file) return;
+  let payload;
+  try{ payload = JSON.parse(await file.text()); }
+  catch(e){ status.textContent = 'Dit bestand is geen geldige back-up.'; return; }
+  if(!payload || payload.type !== 'backup' || typeof payload.data !== 'object' || payload.data === null){
+    status.textContent = "Dit bestand is geen back-up van An't Luupen."; return;
+  }
+  const keys = Object.keys(payload.data).filter(isAppKey);
+  if(!keys.length){ status.textContent = 'De back-up is leeg.'; return; }
+  const when = payload.createdAt ? new Date(payload.createdAt).toLocaleDateString('nl-BE', {day:'numeric', month:'long', year:'numeric'}) : 'onbekende datum';
+  if(!confirm(`Back-up van ${when} terugzetten? Je huidige schema, voortgang en instellingen op dit toestel worden vervangen.`)) return;
+  try{
+    const old = [];
+    for(let i=0; i<localStorage.length; i++){ const k = localStorage.key(i); if(isAppKey(k)) old.push(k); }
+    old.forEach(k => localStorage.removeItem(k));
+    keys.forEach(k => localStorage.setItem(k, String(payload.data[k])));
+  } catch(e){ status.textContent = 'Terugzetten mislukt: de opslag van de browser is vol of niet beschikbaar.'; return; }
+  location.reload();
+});
+
+/* ================================================================
+   UPDATE-MELDING: kijkt of er online een nieuwere versie staat
+   ================================================================ */
+function isNewerVersion(a, b){
+  const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+  for(let i=0; i<Math.max(pa.length, pb.length); i++){
+    const x = pa[i]||0, y = pb[i]||0;
+    if(x !== y) return x > y;
+  }
+  return false;
+}
+let lastVersionCheck = 0;
+async function checkForUpdate(){
+  if(!/^https:$/.test(location.protocol)) return;          // werkt alleen online (GitHub Pages)
+  if(Date.now() - lastVersionCheck < 30*60*1000) return;  // hooguit om het half uur
+  lastVersionCheck = Date.now();
+  try{
+    const res = await fetch('index.html?versiecheck=' + Date.now(), { cache:'no-store' });
+    if(!res.ok) return;
+    const m = (await res.text()).match(/const APP_VERSION = '([0-9.]+)'/);
+    if(m && isNewerVersion(m[1], APP_VERSION)) showUpdateBar(m[1]);
+  } catch(e){ /* offline: niets aan de hand */ }
+}
+function showUpdateBar(version){
+  if(document.getElementById('updateBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'updateBar';
+  bar.className = 'update-bar';
+  bar.setAttribute('role', 'status');
+  bar.innerHTML = `<span>Er is een nieuwe versie van de app (${escapeHtml(version)}).</span>
+    <button type="button" class="btn small" id="updateReloadBtn">Vernieuwen</button>
+    <button type="button" class="close" id="updateCloseBtn" aria-label="Sluiten">×</button>`;
+  document.body.appendChild(bar);
+  document.getElementById('updateReloadBtn').addEventListener('click', async ()=>{
+    try{
+      const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+      if(reg) await reg.update();
+    } catch(e){}
+    location.reload();
+  });
+  document.getElementById('updateCloseBtn').addEventListener('click', ()=> bar.remove());
+}
+window.addEventListener('load', ()=> setTimeout(checkForUpdate, 3000));
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState !== 'visible') return;
+  checkForUpdate();
+  // de app kan dagen open blijven op een gsm: "vandaag" en de huidige week bijwerken
+  if(currentSchedule){ renderToday(); renderChart(currentSchedule); }
+});
+
+/* ================================================================
+   TIJDSADVIES PER WEDSTRIJD (formule van Riegel)
+   T2 = T1 × (D2 / D1)^1,06 — schatting, geen garantie
+   ================================================================ */
+const RIEGEL_EXP = 1.06;
+function riegel(t1, d1, d2){ return t1 * Math.pow(d2/d1, RIEGEL_EXP); }
+function roundTo5s(min){ return Math.round(min*60/5)*5/60; }
+const RECENT_KEY = 'antluupen_recente_tijd';
+
+function updateRaceAdvice(){
+  const recentKm = parseFloat(document.getElementById('recentKm').value);
+  const recent = readRaceTime(document.getElementById('recentTime').value);
+  const recentMin = recent.targetMinutes;
+
+  const rows = [...document.querySelectorAll('#racesContainer .race-row')].map(row => {
+    const dateVal = row.querySelector('.rc-date').value;
+    return {
+      row,
+      date: dateVal ? new Date(dateVal+'T00:00:00') : null,
+      km: parseFloat(row.querySelector('.rc-km').value),
+      priority: row.querySelector('.rc-priority').value,
+      ...readRaceTime(row.querySelector('.rc-time').value)
+    };
+  });
+  const complete = rows.filter(r => r.date && r.km);
+  const primary = getPrimaryRace(complete);
+
+  rows.forEach(r => {
+    const box = r.row.querySelector('.rc-advice');
+    const parts = [];
+    if(r.timeInvalid){
+      parts.push(`<span class="warn">Ongeldige tijd — gebruik bv. 55:00 of 1:45:00.</span>`);
+    }
+    if(recentMin && recentKm && r.km){
+      const pred = roundTo5s(riegel(recentMin, recentKm, r.km));
+      parts.push(`<span>Haalbaar volgens je recente tijd: <strong>≈ ${raceTimeToStr(pred)}</strong></span>`);
+      if(!r.targetMinutes) parts.push(`<button type="button" data-fill="${pred}">Invullen</button>`);
+      else if(r.targetMinutes < pred*0.97){
+        const pct = Math.round((1 - r.targetMinutes/pred)*100);
+        parts.push(`<span class="warn">Je streeftijd is ${pct}% sneller dan de schatting — ambitieus.</span>`);
+      }
+    }
+    if(primary && r !== primary && r.priority==='B' && r.targetMinutes && primary.targetMinutes && r.km){
+      const equiv = riegel(r.targetMinutes, r.km, primary.km);
+      if(equiv < primary.targetMinutes*0.98){
+        parts.push(`<span class="warn">Dit B-doel is relatief sneller dan je A-doel (omgerekend ≈ ${raceTimeToStr(roundTo5s(equiv))} op de A-afstand). Pas een van beide aan of loop dit B-doel rustiger.</span>`);
+      }
+    }
+    box.innerHTML = parts.join('');
+    box.classList.toggle('show', parts.length > 0);
+    box.querySelectorAll('button[data-fill]').forEach(b => b.addEventListener('click', ()=>{
+      r.row.querySelector('.rc-time').value = raceTimeToStr(parseFloat(b.dataset.fill));
+      updateRaceAdvice();
+    }));
+  });
+
+  try{
+    localStorage.setItem(RECENT_KEY, JSON.stringify({ km: recentKm, time: document.getElementById('recentTime').value }));
+  } catch(e){}
+}
+(function initRecentTime(){
+  let saved = {};
+  try{ saved = JSON.parse(localStorage.getItem(RECENT_KEY) || '{}'); } catch(e){}
+  document.getElementById('recentKm').innerHTML = distanceOptionsHtml(saved.km || 10);
+  if(saved.time) document.getElementById('recentTime').value = saved.time;
+  document.getElementById('recentKm').addEventListener('change', updateRaceAdvice);
+  document.getElementById('recentTime').addEventListener('input', updateRaceAdvice);
+})();
+
+
+/* ================================================================
+   INSPIRERENDE CITATEN — telkens willekeurig bovenaan de pagina
+   Alleen citaten met een aanwijsbare bron (toespraak, boek, krant of de eigen
+   website van de persoon). Ze staan in de oorspronkelijke taal; Laozi is een
+   gangbare Engelse vertaling. Een citaat toevoegen? Zet er altijd de bron bij.
+   ================================================================ */
+const QUOTES = [
+  { text:'No human is limited.', author:'Eliud Kipchoge',
+    source:'na de INEOS 1:59 Challenge, Wenen, 12 oktober 2019' },
+  { text:'Only the disciplined ones are free in life.', author:'Eliud Kipchoge',
+    source:'toespraak Oxford Union, 2018' },
+  { text:'I don’t lose, I learn.', author:'Eliud Kipchoge',
+    source:'webinar Nationaal Olympisch Comité van Kenia, juni 2020 (Capital FM)' },
+  { text:'If you are losing faith in human nature, go out and watch a marathon.', author:'Kathrine Switzer',
+    source:'kathrineswitzer.com — eerste vrouw met een officieel startnummer in de Boston Marathon (1967)' },
+  { text:'No one can say, ‘You must not run faster than this, or jump higher than that.’ The human spirit is indomitable.',
+    author:'Roger Bannister', source:'The First Four Minutes, 1955' },
+  { text:'We run, not because we think it is doing us good, but because we enjoy it and cannot help ourselves.',
+    author:'Roger Bannister', source:'The First Four Minutes, 1955' },
+  { text:'I was not talented enough to run and smile at the same time.', author:'Emil Zátopek',
+    source:'geciteerd in The Independent, 23 november 2000' },
+  { text:'The miracle isn’t that I finished. The miracle is that I had the courage to start.', author:'John Bingham',
+    source:'The Courage to Start, 1999' },
+  { text:'If you have a body, you are an athlete.', author:'Bill Bowerman',
+    source:'atletiekcoach en medeoprichter van Nike' },
+  { text:'A journey of a thousand miles begins with a single step.', author:'Laozi',
+    source:'Tao Te Ching, hoofdstuk 64 (vertaling)' }
+];
+const QUOTE_KEY = 'antluupen_laatste_citaat';
+function showRandomQuote(){
+  let last = -1;
+  try{ last = parseInt(localStorage.getItem(QUOTE_KEY), 10); } catch(e){}
+  let i = Math.floor(Math.random() * QUOTES.length);
+  if(QUOTES.length > 1 && i === last) i = (i + 1 + Math.floor(Math.random() * (QUOTES.length - 1))) % QUOTES.length;
+  try{ localStorage.setItem(QUOTE_KEY, String(i)); } catch(e){}
+  const q = QUOTES[i];
+  document.getElementById('headerQuoteText').textContent = '“' + q.text + '”';
+  const cap = document.getElementById('headerQuoteAuthor');
+  cap.textContent = '— ' + q.author;
+  cap.title = 'Bron: ' + q.source;
+  document.getElementById('headerQuote').style.display = 'block';
+}
+showRandomQuote();
+
 document.getElementById('distance').innerHTML = distanceOptionsHtml(10);
 document.getElementById('startDate').valueAsDate = new Date();
 renderDayPicker();
-renderDirectionPicker();
 renderHrZoneTable(computeHrZonesFromMaxHr(220-35));
 addRaceRow('A');
 updateWeeksControlsForRace();
